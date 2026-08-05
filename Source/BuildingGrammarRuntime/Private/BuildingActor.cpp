@@ -11,6 +11,11 @@ ABuildingActor::ABuildingActor()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 }
 
+void ABuildingActor::SetBuildingRuntimeGrid(FName GridName)
+{
+	RuntimeGrid = GridName;
+}
+
 void ABuildingActor::ApplyBuildingSpec(
 	const FGrammarBuildingSpec& Spec,
 	ABuildingInstancePoolActor* Pool,

@@ -48,6 +48,15 @@ public:
 		TFunctionRef<UStaticMesh* (const FString& Role, const FString& VariantKey)> ResolveKitMesh,
 		TFunctionRef<UMaterialInterface* (const FString& MaterialName, const FLinearColor& Color)> ResolveMaterial);
 
+	// Assigns AActor's inherited World Partition RuntimeGrid property (a named grid must also be
+	// defined in the level's WP runtime hash settings for this to have any effect beyond the
+	// engine default grid -- see the World Partition integration note in
+	// BuildingStreamingSubsystem.h). Only meaningful for buildings generated in-editor and then
+	// saved as part of the level; a purely runtime-spawned actor at play time is never partitioned
+	// by WP regardless of this property. Written from recollection of AActor's RuntimeGrid member
+	// name, not verified against engine headers -- check this first if it fails to compile.
+	void SetBuildingRuntimeGrid(FName GridName);
+
 private:
 	UPROPERTY()
 	TArray<TObjectPtr<UDynamicMeshComponent>> HeroComponents;

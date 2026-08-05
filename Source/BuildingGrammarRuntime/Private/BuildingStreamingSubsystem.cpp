@@ -8,6 +8,7 @@
 #include "Geometry/GrammarGeometry2D.h"
 #include "GrammarKitResolver.h"
 #include "Engine/World.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 
 namespace
 {
@@ -33,6 +34,55 @@ namespace
 			Placement.Transform.SetLocation(Location);
 		}
 	}
+}
+
+void UBuildingStreamingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	// Harmless no-op if the level has no World Partition (GetSubsystem returns null) -- see this
+	// class's header comment for why this subsystem registers as a streaming source at all.
+	if (UWorld* World = GetWorld())
+	{
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+		{
+			WorldPartitionSubsystem->RegisterStreamingSourceProvider(this);
+		}
+	}
+}
+
+void UBuildingStreamingSubsystem::Deinitialize()
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+		{
+			WorldPartitionSubsystem->UnregisterStreamingSourceProvider(this);
+		}
+	}
+
+	Super::Deinitialize();
+}
+
+FName UBuildingStreamingSubsystem::GetStreamingSourceProviderName() const
+{
+	return TEXT("ProceduralBuildingGrammar");
+}
+
+bool UBuildingStreamingSubsystem::GetStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const
+{
+	if (!bHasReferenceLocation)
+	{
+		return false;
+	}
+
+	FWorldPartitionStreamingSource Source;
+	Source.Name = TEXT("ProceduralBuildingGrammar");
+	Source.Location = LastReferenceLocation;
+	Source.Rotation = FRotator::ZeroRotator;
+	Source.TargetState = EStreamingSourceTargetState::Activated;
+	OutStreamingSources.Add(Source);
+	return true;
 }
 
 bool UBuildingStreamingSubsystem::LoadOsmExtract(
@@ -104,6 +154,7 @@ FVector UBuildingStreamingSubsystem::CellCenter(const FIntPoint& CellCoord) cons
 void UBuildingStreamingSubsystem::SetReferenceLocation(FVector WorldLocation)
 {
 	bHasReferenceLocation = true;
+	LastReferenceLocation = WorldLocation;
 	const FIntPoint CenterCoord = WorldLocationToCellCoord(WorldLocation);
 	const int32 CellRadius = static_cast<int32>(FMath::CeilToDouble(LoadedStreamingRadius / LoadedCellSize)) + 1;
 

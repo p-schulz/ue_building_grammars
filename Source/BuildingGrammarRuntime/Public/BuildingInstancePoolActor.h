@@ -44,6 +44,10 @@ public:
 
 	int32 NumBuckets() const { return Buckets.Num(); }
 
+	// See ABuildingActor::SetBuildingRuntimeGrid's comment -- same World Partition RuntimeGrid
+	// assignment, same caveats.
+	void SetBuildingRuntimeGrid(FName GridName);
+
 private:
 	static FString MakeBucketKey(const FString& Role, const FString& VariantKey);
 

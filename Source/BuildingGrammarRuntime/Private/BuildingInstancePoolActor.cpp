@@ -7,6 +7,11 @@ ABuildingInstancePoolActor::ABuildingInstancePoolActor()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 }
 
+void ABuildingInstancePoolActor::SetBuildingRuntimeGrid(FName GridName)
+{
+	RuntimeGrid = GridName;
+}
+
 FString ABuildingInstancePoolActor::MakeBucketKey(const FString& Role, const FString& VariantKey)
 {
 	return Role + TEXT("|") + VariantKey;

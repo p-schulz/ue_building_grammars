@@ -110,7 +110,7 @@ UStaticMesh* FGrammarKitAssetBuilder::GetOrCreateUnitBoxMesh()
 	UPackage* Package = CreateAssetPackage(PackagePath);
 	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Package, FName(TEXT("SM_GrammarUnitBox")), RF_Public | RF_Standalone);
 	StaticMesh->GetStaticMaterials().Add(FStaticMaterial());
-	StaticMesh->NaniteSettings.bEnabled = true;
+	StaticMesh->GetNaniteSettings().bEnabled = true;
 
 	FStaticMeshSourceModel& SourceModel = StaticMesh->AddSourceModel();
 	SourceModel.BuildSettings.bRecomputeNormals = false;
@@ -137,17 +137,17 @@ UMaterial* FGrammarKitAssetBuilder::GetOrCreateMasterMaterial()
 	UMaterial* Material = NewObject<UMaterial>(Package, FName(TEXT("M_GrammarKit")), RF_Public | RF_Standalone);
 
 	UMaterialExpressionVectorParameter* BaseColorExpr = Cast<UMaterialExpressionVectorParameter>(
-		UMaterialEditingLibrary::NewMaterialExpression(Material, UMaterialExpressionVectorParameter::StaticClass(), -400, 0));
+		UMaterialEditingLibrary::CreateMaterialExpression(Material, UMaterialExpressionVectorParameter::StaticClass(), -400, 0));
 	BaseColorExpr->ParameterName = TEXT("BaseColor");
 	BaseColorExpr->DefaultValue = FLinearColor::White;
 
 	UMaterialExpressionScalarParameter* RoughnessExpr = Cast<UMaterialExpressionScalarParameter>(
-		UMaterialEditingLibrary::NewMaterialExpression(Material, UMaterialExpressionScalarParameter::StaticClass(), -400, 150));
+		UMaterialEditingLibrary::CreateMaterialExpression(Material, UMaterialExpressionScalarParameter::StaticClass(), -400, 150));
 	RoughnessExpr->ParameterName = TEXT("Roughness");
 	RoughnessExpr->DefaultValue = 0.58f;
 
 	UMaterialExpressionScalarParameter* MetallicExpr = Cast<UMaterialExpressionScalarParameter>(
-		UMaterialEditingLibrary::NewMaterialExpression(Material, UMaterialExpressionScalarParameter::StaticClass(), -400, 250));
+		UMaterialEditingLibrary::CreateMaterialExpression(Material, UMaterialExpressionScalarParameter::StaticClass(), -400, 250));
 	MetallicExpr->ParameterName = TEXT("Metallic");
 	MetallicExpr->DefaultValue = 0.0f;
 

@@ -39,7 +39,8 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 	double OriginLatitude,
 	double OriginLongitude,
 	const FBuildingGrammarConfig& Config,
-	ABuildingInstancePoolActor*& OutPool)
+	ABuildingInstancePoolActor*& OutPool,
+	FName RuntimeGridName)
 {
 	FOsmDocument Document;
 	FString ParseError;
@@ -76,6 +77,10 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 	if (!OutPool)
 	{
 		OutPool = World->SpawnActor<ABuildingInstancePoolActor>();
+		if (OutPool && RuntimeGridName != NAME_None)
+		{
+			OutPool->SetBuildingRuntimeGrid(RuntimeGridName);
+		}
 	}
 
 	int32 GeneratedCount = 0;
@@ -93,6 +98,10 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 		if (!Actor)
 		{
 			continue;
+		}
+		if (RuntimeGridName != NAME_None)
+		{
+			Actor->SetBuildingRuntimeGrid(RuntimeGridName);
 		}
 		Actor->ApplyBuildingSpec(Spec, OutPool, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 		++GeneratedCount;

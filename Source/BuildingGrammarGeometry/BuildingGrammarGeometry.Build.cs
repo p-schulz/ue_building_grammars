@@ -35,7 +35,7 @@ public class BuildingGrammarGeometry : ModuleRules
 			{
 				"UnrealEd",
 				"GeometryScriptingCore",
-				"MaterialEditingLibrary",
+				"MaterialEditor",
 				"AssetRegistry",
 				"AssetTools"
 			});
