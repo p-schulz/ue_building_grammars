@@ -1,0 +1,17 @@
+# Unreal Engine plugin - generated/build artifacts
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+.vscode/
+*.VC.db
+*.opensdf
+*.sdf
+*.sln
+*.suo
+*.xcodeproj
+*.xcworkspace
+
+# macOS
+.DS_Store

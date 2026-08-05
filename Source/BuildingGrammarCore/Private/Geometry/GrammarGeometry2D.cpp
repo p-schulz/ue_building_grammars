@@ -1,0 +1,214 @@
+#include "Geometry/GrammarGeometry2D.h"
+#include "Algo/Reverse.h"
+
+namespace
+{
+	constexpr double GeometryEpsilon = 1e-9;
+}
+
+TArray<FVector2D> FGrammarGeometry2D::CleanFootprint(const TArray<FVector2D>& Footprint)
+{
+	TArray<FVector2D> Clean;
+	Clean.Reserve(Footprint.Num());
+	for (const FVector2D& Point : Footprint)
+	{
+		if (Clean.Num() == 0 || !Clean.Last().Equals(Point, KINDA_SMALL_NUMBER))
+		{
+			Clean.Add(Point);
+		}
+	}
+	if (Clean.Num() > 1 && Clean[0].Equals(Clean.Last(), KINDA_SMALL_NUMBER))
+	{
+		Clean.Pop(EAllowShrinking::No);
+	}
+	return Clean;
+}
+
+double FGrammarGeometry2D::SignedPolygonArea(const TArray<FVector2D>& Footprint)
+{
+	const TArray<FVector2D> Clean = CleanFootprint(Footprint);
+	if (Clean.Num() < 3)
+	{
+		return 0.0;
+	}
+	double Area = 0.0;
+	for (const FEdge& Edge : GetSegments(Clean))
+	{
+		Area += Edge.Start.X * Edge.End.Y - Edge.End.X * Edge.Start.Y;
+	}
+	return Area / 2.0;
+}
+
+bool FGrammarGeometry2D::PolygonIsCCW(const TArray<FVector2D>& Footprint)
+{
+	return SignedPolygonArea(Footprint) > 0.0;
+}
+
+TArray<FVector2D> FGrammarGeometry2D::OrientFootprintCCW(const TArray<FVector2D>& Footprint)
+{
+	TArray<FVector2D> Clean = CleanFootprint(Footprint);
+	if (Clean.Num() < 3 || PolygonIsCCW(Clean))
+	{
+		return Clean;
+	}
+	Algo::Reverse(Clean);
+	return Clean;
+}
+
+TArray<FGrammarGeometry2D::FEdge> FGrammarGeometry2D::GetSegments(const TArray<FVector2D>& Ring)
+{
+	TArray<FEdge> Segments;
+	const int32 Count = Ring.Num();
+	Segments.Reserve(Count);
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		FEdge Edge;
+		Edge.Start = Ring[Index];
+		Edge.End = Ring[(Index + 1) % Count];
+		Segments.Add(Edge);
+	}
+	return Segments;
+}
+
+FVector2D FGrammarGeometry2D::OutwardNormal(const FVector2D& Start, const FVector2D& End, bool bCCW)
+{
+	const double DX = End.X - Start.X;
+	const double DY = End.Y - Start.Y;
+	const double Length = FMath::Sqrt(DX * DX + DY * DY);
+	if (Length <= GeometryEpsilon)
+	{
+		return FVector2D::ZeroVector;
+	}
+	if (bCCW)
+	{
+		return FVector2D(DY / Length, -DX / Length);
+	}
+	return FVector2D(-DY / Length, DX / Length);
+}
+
+FVector2D FGrammarGeometry2D::Tangent(const FVector2D& Start, const FVector2D& End)
+{
+	return Normalize2D(End - Start);
+}
+
+FVector2D FGrammarGeometry2D::PointOnSegment(const FVector2D& Start, const FVector2D& Tangent, const FVector2D& Normal, double OffsetAlongEdge, double DepthOutward)
+{
+	return Start + Tangent * OffsetAlongEdge + Normal * DepthOutward;
+}
+
+FVector2D FGrammarGeometry2D::Move(const FVector2D& Point, const FVector2D& Direction, double Distance)
+{
+	return Point + Direction * Distance;
+}
+
+FVector2D FGrammarGeometry2D::OffsetPoint(const FVector2D& Point, const FVector2D& Normal, double Distance)
+{
+	return Point + Normal * Distance;
+}
+
+double FGrammarGeometry2D::Distance2D(const FVector2D& A, const FVector2D& B)
+{
+	return FVector2D::Distance(A, B);
+}
+
+FVector2D FGrammarGeometry2D::Centroid2D(const TArray<FVector2D>& Points)
+{
+	if (Points.Num() == 0)
+	{
+		return FVector2D::ZeroVector;
+	}
+	FVector2D Sum = FVector2D::ZeroVector;
+	for (const FVector2D& Point : Points)
+	{
+		Sum += Point;
+	}
+	return Sum / static_cast<double>(Points.Num());
+}
+
+FVector2D FGrammarGeometry2D::Normalize2D(const FVector2D& V)
+{
+	const double Length = V.Size();
+	if (Length <= GeometryEpsilon)
+	{
+		return FVector2D::ZeroVector;
+	}
+	return V / Length;
+}
+
+FBox2D FGrammarGeometry2D::Bounds(const TArray<FVector2D>& Points)
+{
+	FBox2D Result(ForceInit);
+	for (const FVector2D& Point : Points)
+	{
+		Result += Point;
+	}
+	return Result;
+}
+
+FVector2D FGrammarGeometry2D::LongestAxisDirection(const TArray<FVector2D>& Points)
+{
+	const FBox2D Box = Bounds(Points);
+	const FVector2D Extent = Box.GetExtent();
+	if (Extent.X >= Extent.Y)
+	{
+		return FVector2D(1.0, 0.0);
+	}
+	return FVector2D(0.0, 1.0);
+}
+
+double FGrammarGeometry2D::PointToSegmentDistanceSquared(const FVector2D& P, const FVector2D& A, const FVector2D& B)
+{
+	const FVector2D AB = B - A;
+	const double LengthSquared = AB.SizeSquared();
+	if (LengthSquared <= GeometryEpsilon)
+	{
+		return FVector2D::DistSquared(P, A);
+	}
+	const double T = FMath::Clamp(FVector2D::DotProduct(P - A, AB) / LengthSquared, 0.0, 1.0);
+	const FVector2D Closest = A + AB * T;
+	return FVector2D::DistSquared(P, Closest);
+}
+
+double FGrammarGeometry2D::PointToPolylineDistance(const FVector2D& P, const TArray<FVector2D>& Polyline)
+{
+	double Best = TNumericLimits<double>::Max();
+	for (int32 Index = 1; Index < Polyline.Num(); ++Index)
+	{
+		Best = FMath::Min(Best, FMath::Sqrt(PointToSegmentDistanceSquared(P, Polyline[Index - 1], Polyline[Index])));
+	}
+	return Best;
+}
+
+TArray<double> FGrammarGeometry2D::FloorBottoms(const TArray<double>& FloorHeights)
+{
+	TArray<double> Bottoms;
+	Bottoms.Reserve(FloorHeights.Num());
+	double Current = 0.0;
+	for (const double Height : FloorHeights)
+	{
+		Bottoms.Add(Current);
+		Current += Height;
+	}
+	return Bottoms;
+}
+
+bool FGrammarGeometry2D::PointInRing(const FVector2D& P, const TArray<FVector2D>& Ring)
+{
+	bool bInside = false;
+	const int32 Count = Ring.Num();
+	for (int32 Index = 0, PrevIndex = Count - 1; Index < Count; PrevIndex = Index++)
+	{
+		const FVector2D& A = Ring[Index];
+		const FVector2D& B = Ring[PrevIndex];
+		if (PointToSegmentDistanceSquared(P, A, B) <= GeometryEpsilon)
+		{
+			return true;
+		}
+		const bool bCrosses = (A.Y > P.Y) != (B.Y > P.Y);
+		if (bCrosses && P.X < (B.X - A.X) * (P.Y - A.Y) / ((B.Y - A.Y) + 1e-30) + A.X)
+		{
+			bInside = !bInside;
+		}
+	}
+	return bInside;
+}
