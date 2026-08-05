@@ -8,9 +8,10 @@
 class ABuildingInstancePoolActor;
 
 // The single end-to-end entry point tying every BuildingGrammarCore/Geometry/Runtime piece
-// together: OSM file -> parsed document -> assembled footprints -> projected to UE-centimeter
-// world space -> building-part parent/child resolution -> per-volume grammar generation -> spawned
-// ABuildingActors + a shared ABuildingInstancePoolActor. Being a plain UBlueprintFunctionLibrary
+// together: OSM file -> parsed document -> assembled footprints -> projected to local-tangent-plane
+// meters (see FLocalTangentPlaneProjection) -> building-part parent/child resolution -> per-volume
+// grammar generation -> spawned ABuildingActors (whose ApplyBuildingSpec converts to UE-centimeter
+// world space) + a shared ABuildingInstancePoolActor. Being a plain UBlueprintFunctionLibrary
 // function (not a method on some Editor-only tool object) is what satisfies docs/PLAN.md's
 // "runtime-capable core from day one" requirement concretely: an Editor Utility Widget can call
 // this exact function from Blueprint, and so can game/runtime code -- there is no separate

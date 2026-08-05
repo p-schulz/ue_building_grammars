@@ -57,16 +57,29 @@ void ABuildingActor::ApplyBuildingSpec(
 
 	if (Pool)
 	{
+		// Placement.Transform's Location and Scale are in BuildingGrammarCore's working unit
+		// (meters -- see FLocalTangentPlaneProjection's header comment and
+		// FGrammarPlacementHelpers::MakeBoxPlacement). The shared kit unit-box mesh
+		// (GrammarKitAssetBuilder.cpp) is baked spanning exactly 1 Unreal unit (1cm), so both the
+		// position and the box-dimensions-as-scale must cross into centimeters here, the same
+		// meters->centimeters boundary FGrammarDynamicMeshBuilder applies to hero mesh vertices.
+		constexpr double MetersToUnrealUnits = 100.0;
 		for (const FGrammarPlacementRecord& Placement : Spec.Placements)
 		{
 			// See the coordinate-convention note in BuildingActor.h -- Placement.Transform is
-			// already absolute world-space, so it is handed to the pool as-is rather than composed
-			// with this actor's (always-identity) transform. VariantKey doubles as the material
-			// name (see GrammarPlacementHelpers.h), hence reusing it for both calls below.
+			// already absolute world-space (once converted to Unreal units below), so it is handed
+			// to the pool as-is rather than composed with this actor's (always-identity)
+			// transform. VariantKey doubles as the material name (see GrammarPlacementHelpers.h),
+			// hence reusing it for both calls below.
 			if (UStaticMesh* KitMesh = ResolveKitMesh(Placement.Role, Placement.VariantKey))
 			{
 				UMaterialInterface* Material = ResolveMaterial(Placement.VariantKey, Placement.Color);
-				Pool->AddInstance(Placement.Role, Placement.VariantKey, Placement.Transform, KitMesh, Material);
+
+				FTransform UnrealTransform = Placement.Transform;
+				UnrealTransform.SetLocation(Placement.Transform.GetLocation() * MetersToUnrealUnits);
+				UnrealTransform.SetScale3D(Placement.Transform.GetScale3D() * MetersToUnrealUnits);
+
+				Pool->AddInstance(Placement.Role, Placement.VariantKey, UnrealTransform, KitMesh, Material);
 			}
 		}
 	}

@@ -12,8 +12,9 @@
 class BUILDINGGRAMMARCORE_API FBuildingGrammarEngine
 {
 public:
-	// Footprint is a closed 2D ring, already projected to a metric space (e.g. UE centimeters --
-	// see FLocalTangentPlaneProjection); winding/duplicate-vertex cleanup happens internally.
+	// Footprint is a closed 2D ring, already projected to a metric space (BuildingGrammarCore's
+	// working unit is meters -- see FLocalTangentPlaneProjection); winding/duplicate-vertex
+	// cleanup happens internally.
 	//
 	// Returns false (with OutError set, OutSpec untouched) if the footprint has fewer than 3
 	// distinct points after cleanup, or if the building's `building=*` value is in

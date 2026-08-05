@@ -7,7 +7,7 @@ FLocalTangentPlaneProjection::FLocalTangentPlaneProjection(double OriginLatitude
 {
 }
 
-FVector2D FLocalTangentPlaneProjection::ProjectToUnrealCentimeters(const FVector2D& LonLatDegrees) const
+FVector2D FLocalTangentPlaneProjection::ProjectToLocalMeters(const FVector2D& LonLatDegrees) const
 {
 	const double LatRadians = FMath::DegreesToRadians(static_cast<double>(LonLatDegrees.Y));
 	const double LonRadians = FMath::DegreesToRadians(static_cast<double>(LonLatDegrees.X));
@@ -15,8 +15,7 @@ FVector2D FLocalTangentPlaneProjection::ProjectToUnrealCentimeters(const FVector
 	const double EastMeters = (LonRadians - OriginLonRadians) * CosOriginLat * EarthRadiusMeters;
 	const double NorthMeters = (LatRadians - OriginLatRadians) * EarthRadiusMeters;
 
-	constexpr double MetersToCentimeters = 100.0;
-	return FVector2D(NorthMeters * MetersToCentimeters, EastMeters * MetersToCentimeters);
+	return FVector2D(NorthMeters, EastMeters);
 }
 
 TArray<FVector2D> FLocalTangentPlaneProjection::ProjectRing(const TArray<FVector2D>& LonLatRing) const
@@ -25,7 +24,7 @@ TArray<FVector2D> FLocalTangentPlaneProjection::ProjectRing(const TArray<FVector
 	Result.Reserve(LonLatRing.Num());
 	for (const FVector2D& Point : LonLatRing)
 	{
-		Result.Add(ProjectToUnrealCentimeters(Point));
+		Result.Add(ProjectToLocalMeters(Point));
 	}
 	return Result;
 }

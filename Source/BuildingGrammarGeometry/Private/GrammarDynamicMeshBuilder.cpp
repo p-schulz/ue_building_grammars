@@ -13,11 +13,18 @@ void FGrammarDynamicMeshBuilder::BuildDynamicMesh(const FGrammarMeshSpec& MeshSp
 	FDynamicMeshNormalOverlay* Normals = OutMesh.Attributes()->PrimaryNormals();
 	FDynamicMeshUVOverlay* UVs = OutMesh.Attributes()->PrimaryUV();
 
+	// MeshSpec.Vertices are in BuildingGrammarCore's working unit (meters -- see
+	// FLocalTangentPlaneProjection's header comment for why the whole grammar engine stays in
+	// meters). This is the single point where hero-surface geometry crosses into actual Unreal
+	// units (centimeters); UV computation below deliberately keeps using the original
+	// meter-valued MeshSpec.Vertices so texel density matches the style's TextureScale exactly as
+	// authored, unaffected by this conversion.
+	constexpr double MetersToUnrealUnits = 100.0;
 	TArray<int32> VertexIDs;
 	VertexIDs.Reserve(MeshSpec.Vertices.Num());
 	for (const FVector& Position : MeshSpec.Vertices)
 	{
-		VertexIDs.Add(OutMesh.AppendVertex(Position));
+		VertexIDs.Add(OutMesh.AppendVertex(Position * MetersToUnrealUnits));
 	}
 
 	for (const FGrammarFace& Face : MeshSpec.Faces)

@@ -32,8 +32,12 @@ struct BUILDINGGRAMMARCORE_API FGrammarMeshSpec
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
 	FString TexturePath;
 
-	// World-space (project-local-meters, not yet scaled to UE centimeters -- that scaling happens
-	// once, at the ingestion/projection boundary) vertex positions.
+	// World-space (project-local-meters, not yet scaled to UE centimeters) vertex positions.
+	// BuildingGrammarCore's grammar engine stays in meters end-to-end -- footprint coordinates and
+	// every config-driven dimension (window/door/floor sizes, etc.) are meters throughout, matching
+	// the Blender add-on's config.py values literally -- so the meters->centimeters conversion is
+	// deferred to a single point downstream, FGrammarDynamicMeshBuilder::BuildDynamicMesh
+	// (BuildingGrammarGeometry), rather than happening here at the ingestion/projection boundary.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
 	TArray<FVector> Vertices;
 

@@ -17,8 +17,9 @@ struct BUILDINGGRAMMARCORE_API FGrammarBuildingVolume
 };
 
 // Port of blender_adapter.py's _source_volumes/_matching_parent. Footprints passed in must already
-// be projected to a metric (e.g. UE-centimeter) space -- BuildingPartMatchTolerance is a metric
-// distance and containment/area comparisons are meaningless in raw lon/lat degrees.
+// be projected to a metric space (BuildingGrammarCore's working unit is meters -- see
+// FLocalTangentPlaneProjection) -- BuildingPartMatchTolerance is a metric distance and
+// containment/area comparisons are meaningless in raw lon/lat degrees.
 class BUILDINGGRAMMARCORE_API FBuildingPartResolver
 {
 public:

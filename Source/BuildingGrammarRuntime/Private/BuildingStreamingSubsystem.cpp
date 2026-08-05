@@ -125,6 +125,14 @@ bool UBuildingStreamingSubsystem::LoadOsmExtract(
 	LoadedStreamingRadius = FMath::Max(StreamingRadius, 0.0);
 	bHasReferenceLocation = false;
 
+	// Volume.Footprint coordinates are in BuildingGrammarCore's working unit, meters (see
+	// FLocalTangentPlaneProjection's header comment). CellSize/StreamingRadius and the
+	// WorldLocation passed to SetReferenceLocation are ordinary UE-centimeter world positions
+	// (e.g. a player pawn's actual GetActorLocation()), so the centroid used purely for cell
+	// bucketing here is converted to centimeters to match that coordinate space -- the volumes
+	// themselves are stored/generated untouched, still in meters, exactly like every other
+	// FBuildingGrammarEngine consumer.
+	constexpr double MetersToUnrealUnits = 100.0;
 	for (const FGrammarBuildingVolume& Volume : Volumes)
 	{
 		if (Volume.Footprint.OuterRing.Num() == 0)
@@ -132,7 +140,7 @@ bool UBuildingStreamingSubsystem::LoadOsmExtract(
 			continue;
 		}
 		const FVector2D Centroid = FGrammarGeometry2D::Centroid2D(Volume.Footprint.OuterRing);
-		const FIntPoint CellCoord = WorldLocationToCellCoord(FVector(Centroid.X, Centroid.Y, 0.0));
+		const FIntPoint CellCoord = WorldLocationToCellCoord(FVector(Centroid.X, Centroid.Y, 0.0) * MetersToUnrealUnits);
 		Cells.FindOrAdd(CellCoord).Volumes.Add(Volume);
 	}
 

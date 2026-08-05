@@ -14,14 +14,18 @@ struct FGrammarBuildingSpec;
 // FGrammarBuildingSpec's comment) for a single generated building or building:part volume.
 //
 // Coordinate convention: FGrammarMeshSpec vertex positions and FGrammarPlacementRecord transforms
-// are both produced by the grammar engine as absolute world-space coordinates (the OSM ingestion
-// projection step, FLocalTangentPlaneProjection, already places everything in UE-centimeter world
-// space -- there is no further per-building recentering). Because of that, this actor's own
-// transform must stay at identity (spawn it at the world origin and leave it there) -- moving or
-// rotating it after ApplyBuildingSpec would double-transform its DynamicMeshComponents, whose
-// vertex data is already absolute. Recentering each building's geometry to be actor-relative (so
-// buildings can be freely moved/streamed as independent actors) is a documented follow-up, not yet
-// implemented.
+// are both produced by the grammar engine as absolute-position coordinates in BuildingGrammarCore's
+// working unit, meters (the OSM ingestion projection step, FLocalTangentPlaneProjection, places
+// everything in local-tangent-plane meters -- see its header comment for why the meters->UE
+// centimeters conversion is deliberately deferred). ApplyBuildingSpec is where that conversion
+// happens: hero mesh vertices are scaled into centimeters by FGrammarDynamicMeshBuilder, and
+// placement transforms are scaled into centimeters inline before being handed to the pool. Because
+// the result is absolute UE-centimeter world space with no further per-building recentering, this
+// actor's own transform must stay at identity (spawn it at the world origin and leave it there) --
+// moving or rotating it after ApplyBuildingSpec would double-transform its DynamicMeshComponents,
+// whose vertex data is already absolute. Recentering each building's geometry to be actor-relative
+// (so buildings can be freely moved/streamed as independent actors) is a documented follow-up, not
+// yet implemented.
 UCLASS(BlueprintType)
 class BUILDINGGRAMMARRUNTIME_API ABuildingActor : public AActor
 {
