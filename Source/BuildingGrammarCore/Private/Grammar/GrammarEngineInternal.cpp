@@ -2,7 +2,6 @@
 #include "Geometry/GrammarGeometry2D.h"
 #include "Geometry/GrammarStableHash.h"
 #include "Grammar/GrammarTagParsing.h"
-#include "Algo/Join.h"
 #include "Misc/Parse.h"
 
 namespace
@@ -15,6 +14,20 @@ namespace
 			Value = FGrammarTagParsing::ParseMeters(Tags.Find(FallbackKey));
 		}
 		return Value;
+	}
+
+	FString JoinStrings(const TArray<FString>& Parts, const TCHAR* Delimiter)
+	{
+		FString Result;
+		for (int32 Index = 0; Index < Parts.Num(); ++Index)
+		{
+			if (Index > 0)
+			{
+				Result += Delimiter;
+			}
+			Result += Parts[Index];
+		}
+		return Result;
 	}
 }
 
@@ -35,7 +48,7 @@ namespace GrammarEngineInternal
 			Get(TEXT("religion")), Get(TEXT("denomination")), Get(TEXT("landuse")), Get(TEXT("parking")),
 			Get(TEXT("start_date"))
 		};
-		FString Raw = Algo::Join(Parts, TEXT(" "));
+		FString Raw = JoinStrings(Parts, TEXT(" "));
 		Raw = Raw.ToLower().Replace(TEXT("_"), TEXT(" ")).Replace(TEXT("-"), TEXT(" ")).Replace(TEXT(":"), TEXT(" "));
 
 		TArray<FString> Tokens;
@@ -177,7 +190,7 @@ namespace GrammarEngineInternal
 			{
 				Capitalized.Add(Part.Left(1).ToUpper() + Part.Mid(1));
 			}
-			Label = FString::Join(Capitalized, TEXT(" "));
+			Label = JoinStrings(Capitalized, TEXT(" "));
 		}
 		return Label.IsEmpty() ? FString::Printf(TEXT("OSM %s"), *Role) : FString::Printf(TEXT("OSM %s %s"), *Role, *Label);
 	}

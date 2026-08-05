@@ -14,7 +14,9 @@ public class BuildingGrammarRuntime : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"BuildingGrammarCore",
-			"BuildingGrammarGeometry"
+			"BuildingGrammarGeometry",
+			"GeometryCore",
+			"GeometryFramework"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

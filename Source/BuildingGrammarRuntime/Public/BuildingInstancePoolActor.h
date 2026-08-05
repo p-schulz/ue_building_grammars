@@ -32,7 +32,7 @@ public:
 	// (matches HISM's own single-static-mesh-per-component constraint). No-ops if Mesh is null,
 	// since there is no baked kit mesh yet to resolve VariantKey to -- see docs/PLAN.md section 4.
 	UFUNCTION(BlueprintCallable, Category = "Building Grammar")
-	void AddInstance(const FString& Role, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh);
+	void AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh);
 
 	// Removes every instance from every bucket (keeps the bucket components themselves, so
 	// re-populating after a regenerate doesn't repeatedly reallocate HISM components).

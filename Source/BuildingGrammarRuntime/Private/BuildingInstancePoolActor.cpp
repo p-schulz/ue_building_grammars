@@ -12,14 +12,14 @@ FString ABuildingInstancePoolActor::MakeBucketKey(const FString& Role, const FSt
 	return Role + TEXT("|") + VariantKey;
 }
 
-void ABuildingInstancePoolActor::AddInstance(const FString& Role, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh)
+void ABuildingInstancePoolActor::AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh)
 {
 	if (!Mesh)
 	{
 		return;
 	}
 
-	const FString BucketKey = MakeBucketKey(Role, VariantKey);
+	const FString BucketKey = MakeBucketKey(RoleTag, VariantKey);
 	TObjectPtr<UHierarchicalInstancedStaticMeshComponent>* ExistingBucket = Buckets.Find(BucketKey);
 	UHierarchicalInstancedStaticMeshComponent* Bucket = ExistingBucket ? ExistingBucket->Get() : nullptr;
 

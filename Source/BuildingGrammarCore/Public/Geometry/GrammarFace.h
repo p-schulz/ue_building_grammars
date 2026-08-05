@@ -8,12 +8,12 @@
 // exact face shapes from grammar.py's mesh builders (_oriented_box's quads, the gabled roof's
 // quad sides, the pyramid roof's triangular fan, the hipped roof's mixed tri/quad faces) survive
 // unchanged into BuildingGrammarGeometry, which triangulates when building the FDynamicMesh3.
-USTRUCT()
+USTRUCT(BlueprintType)
 struct BUILDINGGRAMMARCORE_API FGrammarFace
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
 	TArray<int32> Indices;
 
 	FGrammarFace() = default;
