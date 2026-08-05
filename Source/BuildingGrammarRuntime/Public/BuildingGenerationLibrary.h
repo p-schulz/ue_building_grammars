@@ -10,12 +10,14 @@ class ABuildingInstancePoolActor;
 // The single end-to-end entry point tying every BuildingGrammarCore/Geometry/Runtime piece
 // together: OSM file -> parsed document -> assembled footprints -> projected to local-tangent-plane
 // meters (see FLocalTangentPlaneProjection) -> building-part parent/child resolution -> per-volume
-// grammar generation -> spawned ABuildingActors (whose ApplyBuildingSpec converts to UE-centimeter
-// world space) + a shared ABuildingInstancePoolActor. Being a plain UBlueprintFunctionLibrary
-// function (not a method on some Editor-only tool object) is what satisfies docs/PLAN.md's
-// "runtime-capable core from day one" requirement concretely: an Editor Utility Widget can call
-// this exact function from Blueprint, and so can game/runtime code -- there is no separate
-// editor-only code path to keep in sync.
+// grammar generation -> batched into a shared ABuildingInstancePoolActor (whose ApplyBuildingSpec
+// converts both hero meshes and placements to UE-centimeter world space -- see its own comment --
+// and merges every building's hero surfaces and instanced kit parts into that one pool rather than
+// giving each building its own ABuildingActor). Being a plain UBlueprintFunctionLibrary function
+// (not a method on some Editor-only tool object) is what satisfies docs/PLAN.md's "runtime-capable
+// core from day one" requirement concretely: an Editor Utility Widget can call this exact function
+// from Blueprint, and so can game/runtime code -- there is no separate editor-only code path to
+// keep in sync.
 UCLASS()
 class BUILDINGGRAMMARRUNTIME_API UBuildingGenerationLibrary : public UBlueprintFunctionLibrary
 {
@@ -31,9 +33,9 @@ public:
 	// pass the OSM extract's approximate center. If OutPool is null, a new
 	// ABuildingInstancePoolActor is spawned and returned in it; pass an existing pool to add more
 	// buildings into the same instance buckets. RuntimeGridName is optional -- if set, it's
-	// assigned to every spawned actor's World Partition RuntimeGrid property (see
-	// ABuildingActor::SetBuildingRuntimeGrid; only meaningful if this call's result is saved as
-	// part of a World-Partition-enabled level, not for purely runtime-spawned buildings). Returns
+	// assigned to the pool actor's World Partition RuntimeGrid property (see
+	// ABuildingInstancePoolActor::SetBuildingRuntimeGrid; only meaningful if this call's result is
+	// saved as part of a World-Partition-enabled level, not for purely runtime-spawned buildings). Returns
 	// the number of buildings/building-parts successfully generated (footprints that fail --
 	// excluded building value, degenerate geometry -- are skipped, not fatal to the whole call).
 	UFUNCTION(BlueprintCallable, Category = "Building Grammar")

@@ -5,8 +5,11 @@
 #include "BuildingInstancePoolActor.generated.h"
 
 class UHierarchicalInstancedStaticMeshComponent;
+class UDynamicMeshComponent;
 class UStaticMesh;
 class UMaterialInterface;
+struct FGrammarBuildingSpec;
+namespace UE { namespace Geometry { class FDynamicMesh3; } }
 
 // Owns one UHierarchicalInstancedStaticMeshComponent per distinct (Role, VariantKey) bucket and
 // lets any number of ABuildingActors append instance transforms into the bucket that matches their
@@ -48,9 +51,46 @@ public:
 	// assignment, same caveats.
 	void SetBuildingRuntimeGrid(FName GridName);
 
+	// Batched replacement for spawning one ABuildingActor per building: builds Spec's hero meshes
+	// (see FGrammarDynamicMeshBuilder, which already converts meters -> UE centimeters) and appends
+	// them into this pool's single shared hero-mesh component instead of giving each building its
+	// own actor + components (see AppendHeroMesh), and routes Spec's placements through AddInstance
+	// exactly as ABuildingActor::ApplyBuildingSpec does -- including that same meters ->
+	// UE-centimeters conversion of each placement's Location/Scale (Spec.Placements are still in
+	// BuildingGrammarCore's working unit, meters; see FLocalTangentPlaneProjection's header
+	// comment). ResolveKitMesh/ResolveMaterial have the same contract as ABuildingActor's -- pass
+	// FGrammarKitResolver::ResolveKitMesh/ResolveMaterial (BuildingGrammarGeometry) for the real
+	// implementation. Caller must call FlushHeroMeshUpdates() once after the last Spec in a
+	// generation pass (not after every call -- see that method's comment).
+	void ApplyBuildingSpec(
+		const FGrammarBuildingSpec& Spec,
+		TFunctionRef<UStaticMesh* (const FString& Role, const FString& VariantKey)> ResolveKitMesh,
+		TFunctionRef<UMaterialInterface* (const FString& MaterialName, const FLinearColor& Color)> ResolveMaterial);
+
+	// Appends BuiltMesh's triangles (already in absolute UE-centimeter world-space -- see
+	// ApplyBuildingSpec's comment) into this pool's single shared hero-mesh component, lazily
+	// creating it on first use. Every building's hero surfaces (walls/roofs) that share this pool
+	// end up in the same DynamicMeshComponent instead of one actor+component per building; Material
+	// is tracked in a small per-pool slot list and applied via the mesh's MaterialID triangle
+	// attribute (UDynamicMesh enables that attribute by default). No-ops if BuiltMesh has no
+	// triangles. Change notification is deferred -- see FlushHeroMeshUpdates.
+	void AppendHeroMesh(const UE::Geometry::FDynamicMesh3& BuiltMesh, UMaterialInterface* Material);
+
+	// Pushes every AppendHeroMesh() edit since the last flush to the render proxy. AppendHeroMesh
+	// defers its change notification -- rebuilding the render proxy after every single building
+	// would defeat the point of batching -- so callers MUST call this once after the last
+	// AppendHeroMesh() in a generation pass, or the newly appended geometry never becomes visible.
+	void FlushHeroMeshUpdates();
+
 private:
 	static FString MakeBucketKey(const FString& Role, const FString& VariantKey);
 
 	UPROPERTY()
 	TMap<FString, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> Buckets;
+
+	UPROPERTY()
+	TObjectPtr<UDynamicMeshComponent> HeroMeshComponent;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UMaterialInterface>> HeroMaterials;
 };

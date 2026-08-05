@@ -7,17 +7,18 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "BuildingStreamingSubsystem.generated.h"
 
-class ABuildingActor;
 class ABuildingInstancePoolActor;
 
 // Proximity-based building streaming: loads an OSM extract once (parse + assemble + project +
 // building-part resolution -- the expensive, one-time part of UBuildingGenerationLibrary's
 // pipeline), buckets the resulting volumes into a grid of square cells by footprint centroid, and
-// then only actually runs the grammar engine + spawns actors for cells within StreamingRadius of
-// a reference location (typically the player), evicting cells that fall out of range. This is
-// the same FBuildingGrammarEngine/ABuildingActor/ABuildingInstancePoolActor pipeline
+// then only actually runs the grammar engine + spawns one ABuildingInstancePoolActor per cell
+// within StreamingRadius of a reference location (typically the player), evicting cells that fall
+// out of range. This is the same FBuildingGrammarEngine/ABuildingInstancePoolActor pipeline
 // UBuildingGenerationLibrary uses for a one-shot editor-tool generation, just driven by distance
-// instead of a button press.
+// instead of a button press -- every building in a cell batches into that cell's single pool
+// (hero meshes and instanced kit parts alike) rather than getting its own actor, so activating or
+// evicting a cell is one actor spawn/destroy, not one per building.
 //
 // World Partition integration: this subsystem is its own independent grid, unaware of the level's
 // World Partition cells by default -- but it also implements IWorldPartitionStreamingSourceProvider
@@ -27,7 +28,7 @@ class ABuildingInstancePoolActor;
 // into the level via UBuildingGenerationLibrary and saved, which WP partitions into cells like any
 // other placed actor once saved) with this subsystem's dynamically-spawned/streamed buildings gets
 // consistent streaming behavior from one reference point, rather than two uncoordinated systems.
-// See ABuildingActor's RuntimeGrid property for assigning editor-baked buildings to a specific WP
+// See ABuildingInstancePoolActor's RuntimeGrid property for assigning editor-baked buildings to a specific WP
 // runtime grid. Data Layer assignment is not implemented -- the Data Layer C++ API has changed
 // shape more than once across UE5 versions and this wasn't confident enough to include; a
 // documented follow-up, not a silent gap.
@@ -77,11 +78,10 @@ public:
 	int32 NumLoadedVolumes() const;
 	int32 NumActiveCells() const;
 
-	// IWorldPartitionStreamingSourceProvider -- appends one streaming source at the last
-	// SetReferenceLocation point (nothing if SetReferenceLocation has never been called). This is
-	// what makes this subsystem's proximity tracking also drive the level's native World Partition
-	// streaming, not just this plugin's own cell grid.
-	virtual FName GetStreamingSourceProviderName() const override;
+	// IWorldPartitionStreamingSourceProvider -- appends one streaming source (named "ProceduralBuildingGrammar",
+	// see the .cpp) at the last SetReferenceLocation point (nothing if SetReferenceLocation has
+	// never been called). This is what makes this subsystem's proximity tracking also drive the
+	// level's native World Partition streaming, not just this plugin's own cell grid.
 	virtual bool GetStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const override;
 
 private:
@@ -89,7 +89,6 @@ private:
 	{
 		TArray<FGrammarBuildingVolume> Volumes;
 		bool bActive = false;
-		TArray<TWeakObjectPtr<ABuildingActor>> SpawnedActors;
 		TWeakObjectPtr<ABuildingInstancePoolActor> Pool;
 	};
 

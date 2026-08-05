@@ -1,5 +1,4 @@
 #include "BuildingGenerationLibrary.h"
-#include "BuildingActor.h"
 #include "BuildingInstancePoolActor.h"
 #include "Osm/OsmTypes.h"
 #include "Osm/BuildingFootprintAssembler.h"
@@ -82,6 +81,11 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 			OutPool->SetBuildingRuntimeGrid(RuntimeGridName);
 		}
 	}
+	if (!OutPool)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UBuildingGenerationLibrary: failed to spawn ABuildingInstancePoolActor"));
+		return 0;
+	}
 
 	int32 GeneratedCount = 0;
 	for (const FGrammarBuildingVolume& Volume : Volumes)
@@ -94,18 +98,10 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 		}
 		ApplyMinHeightOffset(Spec, Volume.MinHeight);
 
-		ABuildingActor* Actor = World->SpawnActor<ABuildingActor>();
-		if (!Actor)
-		{
-			continue;
-		}
-		if (RuntimeGridName != NAME_None)
-		{
-			Actor->SetBuildingRuntimeGrid(RuntimeGridName);
-		}
-		Actor->ApplyBuildingSpec(Spec, OutPool, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
+		OutPool->ApplyBuildingSpec(Spec, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 		++GeneratedCount;
 	}
+	OutPool->FlushHeroMeshUpdates();
 
 	return GeneratedCount;
 }

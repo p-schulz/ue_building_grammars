@@ -1,5 +1,4 @@
 #include "BuildingStreamingSubsystem.h"
-#include "BuildingActor.h"
 #include "BuildingInstancePoolActor.h"
 #include "Osm/OsmTypes.h"
 #include "Osm/BuildingFootprintAssembler.h"
@@ -62,11 +61,6 @@ void UBuildingStreamingSubsystem::Deinitialize()
 	}
 
 	Super::Deinitialize();
-}
-
-FName UBuildingStreamingSubsystem::GetStreamingSourceProviderName() const
-{
-	return TEXT("ProceduralBuildingGrammar");
 }
 
 bool UBuildingStreamingSubsystem::GetStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const
@@ -209,6 +203,10 @@ void UBuildingStreamingSubsystem::ActivateCell(const FIntPoint& CellCoord)
 	}
 
 	ABuildingInstancePoolActor* Pool = World->SpawnActor<ABuildingInstancePoolActor>();
+	if (!Pool)
+	{
+		return;
+	}
 	Cell->Pool = Pool;
 
 	for (const FGrammarBuildingVolume& Volume : Cell->Volumes)
@@ -221,14 +219,9 @@ void UBuildingStreamingSubsystem::ActivateCell(const FIntPoint& CellCoord)
 		}
 		ApplyMinHeightOffset(Spec, Volume.MinHeight);
 
-		ABuildingActor* Actor = World->SpawnActor<ABuildingActor>();
-		if (!Actor)
-		{
-			continue;
-		}
-		Actor->ApplyBuildingSpec(Spec, Pool, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
-		Cell->SpawnedActors.Add(Actor);
+		Pool->ApplyBuildingSpec(Spec, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 	}
+	Pool->FlushHeroMeshUpdates();
 
 	Cell->bActive = true;
 }
@@ -240,15 +233,6 @@ void UBuildingStreamingSubsystem::DeactivateCell(const FIntPoint& CellCoord)
 	{
 		return;
 	}
-
-	for (const TWeakObjectPtr<ABuildingActor>& Actor : Cell->SpawnedActors)
-	{
-		if (ABuildingActor* ActorPtr = Actor.Get())
-		{
-			ActorPtr->Destroy();
-		}
-	}
-	Cell->SpawnedActors.Empty();
 
 	if (ABuildingInstancePoolActor* PoolPtr = Cell->Pool.Get())
 	{
