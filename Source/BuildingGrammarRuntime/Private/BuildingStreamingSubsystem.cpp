@@ -6,6 +6,7 @@
 #include "Geo/LocalTangentPlaneProjection.h"
 #include "Grammar/BuildingGrammarEngine.h"
 #include "Geometry/GrammarGeometry2D.h"
+#include "GrammarKitResolver.h"
 #include "Engine/World.h"
 
 namespace
@@ -151,9 +152,6 @@ void UBuildingStreamingSubsystem::ActivateCell(const FIntPoint& CellCoord)
 	ABuildingInstancePoolActor* Pool = World->SpawnActor<ABuildingInstancePoolActor>();
 	Cell->Pool = Pool;
 
-	const auto NullKitMeshResolver = [](const FString&, const FString&) -> UStaticMesh* { return nullptr; };
-	const auto NullMaterialResolver = [](const FString&) -> UMaterialInterface* { return nullptr; };
-
 	for (const FGrammarBuildingVolume& Volume : Cell->Volumes)
 	{
 		FGrammarBuildingSpec Spec;
@@ -169,7 +167,7 @@ void UBuildingStreamingSubsystem::ActivateCell(const FIntPoint& CellCoord)
 		{
 			continue;
 		}
-		Actor->ApplyBuildingSpec(Spec, Pool, NullKitMeshResolver, NullMaterialResolver);
+		Actor->ApplyBuildingSpec(Spec, Pool, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 		Cell->SpawnedActors.Add(Actor);
 	}
 

@@ -21,7 +21,7 @@ struct FGrammarBuildingSpec;
 // rotating it after ApplyBuildingSpec would double-transform its DynamicMeshComponents, whose
 // vertex data is already absolute. Recentering each building's geometry to be actor-relative (so
 // buildings can be freely moved/streamed as independent actors) is a documented follow-up, not yet
-// implemented -- see docs/PLAN.md section 5.
+// implemented.
 UCLASS(BlueprintType)
 class BUILDINGGRAMMARRUNTIME_API ABuildingActor : public AActor
 {
@@ -31,18 +31,22 @@ public:
 	ABuildingActor();
 
 	// Rebuilds this actor's hero-mesh components from Spec.HeroMeshes (destroying any from a
-	// previous call), and appends every Spec.Placements entry into Pool (if non-null) via
-	// ResolveKitMesh(Role, VariantKey) -- returning null for every role is expected until kit
-	// baking exists (docs/PLAN.md section 4), in which case only the hero walls/roof will render.
-	// ResolveMaterial(MaterialName) resolves a mesh spec's Material string to a UMaterialInterface;
-	// returning null leaves the component on the engine default material -- a parametrized master
-	// material + per-style Material Instances (docs/PLAN.md section 6) is the intended real
-	// resolver, not yet built.
+	// previous call), and appends every Spec.Placements entry into Pool (if non-null). For each
+	// hero mesh, ResolveKitMesh is NOT used (hero surfaces are unique per-building DynamicMesh
+	// geometry, never a kit part) -- only ResolveMaterial(MeshSpec.Material, MeshSpec.Color) is
+	// called. For each placement, ResolveKitMesh(Role, VariantKey) resolves the shared kit mesh and
+	// ResolveMaterial(Placement.VariantKey, Placement.Color) resolves its material (VariantKey
+	// doubles as the material name throughout the grammar engine's placement output -- see
+	// BuildingGrammarCore's GrammarPlacementHelpers.h). Pass
+	// FGrammarKitResolver::ResolveKitMesh/ResolveMaterial (BuildingGrammarGeometry) for the real
+	// implementation; either callback returning null is handled gracefully (no mesh/default
+	// material) rather than asserting, so callers can pass no-op lambdas to skip kit rendering
+	// entirely if desired.
 	void ApplyBuildingSpec(
 		const FGrammarBuildingSpec& Spec,
 		ABuildingInstancePoolActor* Pool,
 		TFunctionRef<UStaticMesh* (const FString& Role, const FString& VariantKey)> ResolveKitMesh,
-		TFunctionRef<UMaterialInterface* (const FString& MaterialName)> ResolveMaterial);
+		TFunctionRef<UMaterialInterface* (const FString& MaterialName, const FLinearColor& Color)> ResolveMaterial);
 
 private:
 	UPROPERTY()

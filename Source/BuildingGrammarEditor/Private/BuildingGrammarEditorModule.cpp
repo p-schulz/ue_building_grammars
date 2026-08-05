@@ -99,12 +99,12 @@ void FBuildingGrammarEditorModule::OnLoadConfigFromJsonClicked()
 		FText::FromString(FPaths::GetCleanFilename(OutFiles[0]))));
 }
 
-// v1 flow, matching docs/PLAN.md section 7's scope: file-pick an .osm, derive a projection origin
-// from the file's own node bounding-box center (no manual lat/lon entry dialog yet), generate
-// using whichever config OnLoadConfigFromJsonClicked most recently loaded (falling back to the
-// built-in urban_block preset if none has been) into the currently open editor world. Kit meshes/
-// materials still resolve to null (docs/PLAN.md section 4/6), so only facade walls/roof planes
-// will be visible after this runs.
+// v1 flow: file-pick an .osm, derive a projection origin from the file's own node bounding-box
+// center (no manual lat/lon entry dialog yet), generate using whichever config
+// OnLoadConfigFromJsonClicked most recently loaded (falling back to the built-in urban_block
+// preset if none has been) into the currently open editor world. Kit meshes/materials are resolved
+// via FGrammarKitResolver inside UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile, which
+// bakes the shared kit mesh + master material the first time it runs in this editor session.
 void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 {
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();

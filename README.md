@@ -13,7 +13,8 @@ roof tiles, and antennas stay cheap at city scale.
   windows, chimneys, gutters, parapet trim, 8 antenna types, street-level retail/industrial detail,
   and facade pattern bands.
 - **Large-area performance** — repeated elements resolve to instance transforms for pooled
-  `HierarchicalInstancedStaticMeshComponent`s instead of unique per-instance geometry.
+  `HierarchicalInstancedStaticMeshComponent`s instead of unique per-instance geometry, using a
+  shared Nanite-enabled kit mesh baked (and cached) automatically on first use.
 - **Runtime streaming** — load an extract once, then stream buildings in and out by proximity to a
   reference point (e.g. the player).
 - **Editor tool** — `Tools > Procedural Building Grammar > Generate Buildings from OSM...`.
@@ -82,14 +83,19 @@ Streaming->SetReferenceLocation(PlayerPawn->GetActorLocation()); // call again a
 | Module | Status |
 |---|---|
 | `BuildingGrammarCore` | Complete — OSM ingestion, config model, full grammar engine |
-| `BuildingGrammarGeometry` | Partial — hero mesh → `FDynamicMesh3` builder done; `UStaticMesh`/Nanite kit baking not started |
+| `BuildingGrammarGeometry` | Hero mesh → `FDynamicMesh3` builder done; Nanite kit baking (unit-box mesh + master material) done; per-style/per-dimension kit variants not yet split out (every role currently shares one mesh, scaled per instance) |
 | `BuildingGrammarRuntime` | Generation + proximity streaming complete; async generation and per-actor recentering not implemented |
 | `BuildingGrammarEditor` | v1 menu commands (generate + JSON preset load) done; no in-editor property picker UI yet |
 | Style presets | 30 of 31 facade styles (9 native C++, 21 more via JSON import); 1 of 16 full building presets ported natively |
 
-Because kit meshes and per-style materials don't exist yet, generated buildings currently show
-correct facade walls and roof planes, but every instanced element (windows, doors, roof tiles,
-balconies, antennas, ...) computes a correct placement transform with nothing to render there yet.
+Every generated element now has real geometry: instanced elements (windows, doors, roof tiles,
+balconies, antennas, ...) render as a shared, non-uniformly-scaled unit box tinted per material via
+a dynamic material instance — not their true per-element shape yet (a window and a roof tile both
+render as boxes sized to the right dimensions, not their distinct silhouettes), but no longer
+invisible. Kit baking happens automatically and is cached on disk under
+`/ProceduralBuildingGrammar/Kits/` the first time generation runs in-editor; **a level intended for
+a packaged (non-editor) build needs generation to have run at least once in-editor first**, since
+new assets can only be baked inside the editor — see `GrammarKitResolver.h`.
 
 
 ## Architecture
@@ -101,7 +107,8 @@ Source/
 ├── BuildingGrammarGeometry/        FMeshSpec -> FDynamicMesh3 / Nanite kit baking
 ├── BuildingGrammarRuntime/         Actors, HISM instance pools, streaming subsystem
 └── BuildingGrammarEditor/          Level Editor menu tooling
-Content/                            Materials, baked kit meshes (once implemented)
+Content/                            (empty at rest -- kit mesh/material are baked into
+                                     /ProceduralBuildingGrammar/Kits/ the first time you generate)
 ```
 
 Two independent JSON formats exist by design: `FBuildingGrammarConfig::ToJsonString`/

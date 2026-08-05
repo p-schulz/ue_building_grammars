@@ -12,7 +12,7 @@ FString ABuildingInstancePoolActor::MakeBucketKey(const FString& Role, const FSt
 	return Role + TEXT("|") + VariantKey;
 }
 
-void ABuildingInstancePoolActor::AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh)
+void ABuildingInstancePoolActor::AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh, UMaterialInterface* Material)
 {
 	if (!Mesh)
 	{
@@ -27,6 +27,10 @@ void ABuildingInstancePoolActor::AddInstance(const FString& RoleTag, const FStri
 	{
 		Bucket = NewObject<UHierarchicalInstancedStaticMeshComponent>(this, MakeUniqueObjectName(this, UHierarchicalInstancedStaticMeshComponent::StaticClass(), *BucketKey));
 		Bucket->SetStaticMesh(Mesh);
+		if (Material)
+		{
+			Bucket->SetMaterial(0, Material);
+		}
 		Bucket->SetMobility(EComponentMobility::Static);
 		Bucket->SetupAttachment(GetRootComponent());
 		Bucket->RegisterComponent();

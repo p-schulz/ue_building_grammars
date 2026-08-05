@@ -6,6 +6,7 @@
 #include "Osm/BuildingPartResolver.h"
 #include "Geo/LocalTangentPlaneProjection.h"
 #include "Grammar/BuildingGrammarEngine.h"
+#include "GrammarKitResolver.h"
 #include "Engine/World.h"
 
 namespace
@@ -77,9 +78,6 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 		OutPool = World->SpawnActor<ABuildingInstancePoolActor>();
 	}
 
-	const auto NullKitMeshResolver = [](const FString&, const FString&) -> UStaticMesh* { return nullptr; };
-	const auto NullMaterialResolver = [](const FString&) -> UMaterialInterface* { return nullptr; };
-
 	int32 GeneratedCount = 0;
 	for (const FGrammarBuildingVolume& Volume : Volumes)
 	{
@@ -96,7 +94,7 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 		{
 			continue;
 		}
-		Actor->ApplyBuildingSpec(Spec, OutPool, NullKitMeshResolver, NullMaterialResolver);
+		Actor->ApplyBuildingSpec(Spec, OutPool, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 		++GeneratedCount;
 	}
 

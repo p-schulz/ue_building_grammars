@@ -6,6 +6,7 @@
 
 class UHierarchicalInstancedStaticMeshComponent;
 class UStaticMesh;
+class UMaterialInterface;
 
 // Owns one UHierarchicalInstancedStaticMeshComponent per distinct (Role, VariantKey) bucket and
 // lets any number of ABuildingActors append instance transforms into the bucket that matches their
@@ -26,13 +27,15 @@ public:
 	ABuildingInstancePoolActor();
 
 	// Appends one instance transform to the bucket for (Role, VariantKey), creating the bucket's
-	// HISM component (and assigning it Mesh) the first time that (Role, VariantKey) pair is seen.
-	// Mesh must be the same UStaticMesh every time for a given (Role, VariantKey) pair -- it is
-	// only actually consulted on first use; a mismatched Mesh on a later call is silently ignored
-	// (matches HISM's own single-static-mesh-per-component constraint). No-ops if Mesh is null,
-	// since there is no baked kit mesh yet to resolve VariantKey to -- see docs/PLAN.md section 4.
+	// HISM component (and assigning it Mesh + Material) the first time that (Role, VariantKey)
+	// pair is seen. Mesh/Material must be the same every time for a given (Role, VariantKey) pair
+	// -- they are only actually consulted on first use; a mismatch on a later call is silently
+	// ignored (matches HISM's own single-mesh/single-material-set-per-component constraint).
+	// No-ops if Mesh is null (no baked kit mesh to resolve VariantKey to -- see
+	// GrammarKitResolver.h in BuildingGrammarGeometry); Material may be null (component keeps
+	// its mesh's default material).
 	UFUNCTION(BlueprintCallable, Category = "Building Grammar")
-	void AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh);
+	void AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh, UMaterialInterface* Material = nullptr);
 
 	// Removes every instance from every bucket (keeps the bucket components themselves, so
 	// re-populating after a regenerate doesn't repeatedly reallocate HISM components).

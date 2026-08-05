@@ -15,7 +15,7 @@ void ABuildingActor::ApplyBuildingSpec(
 	const FGrammarBuildingSpec& Spec,
 	ABuildingInstancePoolActor* Pool,
 	TFunctionRef<UStaticMesh* (const FString&, const FString&)> ResolveKitMesh,
-	TFunctionRef<UMaterialInterface* (const FString&)> ResolveMaterial)
+	TFunctionRef<UMaterialInterface* (const FString&, const FLinearColor&)> ResolveMaterial)
 {
 	for (UDynamicMeshComponent* Existing : HeroComponents)
 	{
@@ -42,7 +42,7 @@ void ABuildingActor::ApplyBuildingSpec(
 		Component->RegisterComponent();
 		Component->GetDynamicMesh()->SetMesh(MoveTemp(BuiltMesh));
 
-		if (UMaterialInterface* Material = ResolveMaterial(MeshSpec.Material))
+		if (UMaterialInterface* Material = ResolveMaterial(MeshSpec.Material, MeshSpec.Color))
 		{
 			Component->SetMaterial(0, Material);
 		}
@@ -56,10 +56,12 @@ void ABuildingActor::ApplyBuildingSpec(
 		{
 			// See the coordinate-convention note in BuildingActor.h -- Placement.Transform is
 			// already absolute world-space, so it is handed to the pool as-is rather than composed
-			// with this actor's (always-identity) transform.
+			// with this actor's (always-identity) transform. VariantKey doubles as the material
+			// name (see GrammarPlacementHelpers.h), hence reusing it for both calls below.
 			if (UStaticMesh* KitMesh = ResolveKitMesh(Placement.Role, Placement.VariantKey))
 			{
-				Pool->AddInstance(Placement.Role, Placement.VariantKey, Placement.Transform, KitMesh);
+				UMaterialInterface* Material = ResolveMaterial(Placement.VariantKey, Placement.Color);
+				Pool->AddInstance(Placement.Role, Placement.VariantKey, Placement.Transform, KitMesh, Material);
 			}
 		}
 	}
