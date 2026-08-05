@@ -41,10 +41,6 @@
 		{
 			"Name": "GeometryScripting",
 			"Enabled": true
-		},
-		{
-			"Name": "ModelingComponents",
-			"Enabled": true
 		}
 	]
 }
