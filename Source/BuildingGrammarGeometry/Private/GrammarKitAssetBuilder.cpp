@@ -4,6 +4,7 @@
 
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "MaterialEditingLibrary.h"
@@ -48,6 +49,23 @@ namespace
 		FSavePackageArgs SaveArgs;
 		SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
 		return UPackage::SavePackage(Package, Asset, *FileName, SaveArgs);
+	}
+
+	// Every kit part is rendered through a UHierarchicalInstancedStaticMeshComponent (see
+	// ABuildingInstancePoolActor::AddInstance) on a Nanite-enabled mesh (GetOrCreateUnitBoxMesh),
+	// so this material needs both usage flags set before it's ever assigned to one of those
+	// components -- otherwise the engine sets them reactively on first use (see the MapCheck
+	// "was missing the usage flag" warning), which both forces an unplanned mid-generation shader/
+	// RTPSO recompile and leaves the change unsaved on disk, so it repeats every editor session
+	// until the asset happens to get re-saved some other way. Returns true if either flag was
+	// actually newly set (i.e. the caller needs to save Material), false if both were already set.
+	bool EnsureMaterialUsageFlags(UMaterial* Material)
+	{
+		const bool bHadInstancedStaticMeshes = Material->bUsedWithInstancedStaticMeshes != 0;
+		const bool bHadNanite = Material->bUsedWithNanite != 0;
+		Material->SetMaterialUsage(MATUSAGE_InstancedStaticMeshes);
+		Material->SetMaterialUsage(MATUSAGE_Nanite);
+		return !bHadInstancedStaticMeshes || !bHadNanite;
 	}
 }
 
@@ -130,6 +148,15 @@ UMaterial* FGrammarKitAssetBuilder::GetOrCreateMasterMaterial()
 	const TCHAR* PackagePath = GetMasterMaterialPath();
 	if (UMaterial* Existing = LoadObject<UMaterial>(nullptr, PackagePath))
 	{
+		// Self-healing for an asset baked before these flags were set proactively (see
+		// EnsureMaterialUsageFlags's comment) -- re-saves once so this doesn't re-trigger every
+		// session.
+		if (EnsureMaterialUsageFlags(Existing))
+		{
+			Existing->PreEditChange(nullptr);
+			UMaterialEditingLibrary::RecompileMaterial(Existing);
+			SaveAssetPackage(Existing->GetOutermost(), Existing, PackagePath);
+		}
 		return Existing;
 	}
 
@@ -154,6 +181,8 @@ UMaterial* FGrammarKitAssetBuilder::GetOrCreateMasterMaterial()
 	UMaterialEditingLibrary::ConnectMaterialProperty(BaseColorExpr, TEXT(""), EMaterialProperty::MP_BaseColor);
 	UMaterialEditingLibrary::ConnectMaterialProperty(RoughnessExpr, TEXT(""), EMaterialProperty::MP_Roughness);
 	UMaterialEditingLibrary::ConnectMaterialProperty(MetallicExpr, TEXT(""), EMaterialProperty::MP_Metallic);
+
+	EnsureMaterialUsageFlags(Material);
 
 	Material->PreEditChange(nullptr);
 	UMaterialEditingLibrary::RecompileMaterial(Material);

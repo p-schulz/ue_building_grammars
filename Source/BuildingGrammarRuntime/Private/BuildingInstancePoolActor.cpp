@@ -11,6 +11,13 @@ ABuildingInstancePoolActor::ABuildingInstancePoolActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	// Every HISM bucket and the shared hero-mesh component are marked Static before attaching to
+	// this Root (AddInstance/AppendHeroMesh) -- a Static child can't attach to a non-Static parent
+	// (the engine aborts the attach and logs a warning), and Root defaulted to Movable. This actor
+	// is generated once and never moved (see AddInstance/AppendHeroMesh's absolute-world-space
+	// coordinate convention), so Static is also the semantically correct mobility here, not just a
+	// warning workaround.
+	RootComponent->SetMobility(EComponentMobility::Static);
 }
 
 void ABuildingInstancePoolActor::SetBuildingRuntimeGrid(FName GridName)
