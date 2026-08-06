@@ -3,14 +3,27 @@
 #include "CoreMinimal.h"
 #include "Config/BuildingGrammarConfig.h"
 
-// Port of a first wave of presets.py's 16 example_building_configs() -- see
-// GrammarFacadeStyles.h's Wave 1 note. urban_block is the one building preset in this wave since
-// it's the only one whose facade styles (stone_urban + quiet_side) are already ported; the
-// remaining 15 (including german_office, which needs 5 more office facade styles) are Wave 2.
+// Port of all 16 of presets.py's example_building_configs(), each referencing the corresponding
+// GrammarFacadeStyles:: native facade style(s) (see that header's own comment on coverage).
 namespace GrammarBuildingPresets
 {
 	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig UrbanBlockConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig ModernMidriseConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig ModernSteelOfficeConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig LowriseMixedConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig WarehouseConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig RetailConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig SupermarketConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig IndustrialConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig ParkingGarageConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig TransitShelterConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig ChurchCathedralConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig GruenderzeitBlockConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig BauhausApartmentConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig PlattenbauSlabConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig GermanApartmentRoofsConfig();
+	BUILDINGGRAMMARCORE_API FBuildingGrammarConfig GermanOfficeConfig();
 
-	// name -> config, mirroring presets.py's example_building_configs() (Wave 1 subset only).
-	BUILDINGGRAMMARCORE_API TMap<FString, FBuildingGrammarConfig> Wave1BuildingPresets();
+	// name -> config, mirroring presets.py's example_building_configs() exactly (all 16).
+	BUILDINGGRAMMARCORE_API TMap<FString, FBuildingGrammarConfig> AllBuildingPresets();
 }

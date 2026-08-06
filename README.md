@@ -19,8 +19,11 @@ roof tiles, and antennas stay cheap at city scale.
   reference point (e.g. the player), cooperating with a level's native World Partition streaming
   (if it has one) rather than running as an unrelated second system.
 - **Editor tool** — `Tools > Procedural Building Grammar > Generate Buildings from OSM...`.
-- **Style presets** — 30 of the source add-on's 31 facade styles are available: 9 ported directly
-  to C++, the rest loadable from the add-on's own bundled JSON preset file (see JSON below).
+- **Style presets** — all 31 of the source add-on's facade styles are available: 25 ported directly
+  to C++ (including every style used by the 16 native building presets below), the rest loadable
+  from the add-on's own bundled JSON preset file (see JSON below). All 16 building presets
+  (`urban_block`, `modern_midrise`, `warehouse`, `church_cathedral`, `german_office`, ...) are
+  ported natively — see `GrammarBuildingPresets::AllBuildingPresets()`.
 - **JSON preset import/export** — reads and writes the source Blender add-on's own config schema
   (snake_case field names, e.g. `wall_material`, `default_floor_height`) directly, so existing
   exported presets load without any conversion step.
@@ -148,7 +151,7 @@ crashing.
 | `BuildingGrammarGeometry` | Hero mesh → `FDynamicMesh3` builder done; Nanite kit baking (unit-box mesh + master material) done; per-style/per-dimension kit variants not yet split out (every role currently shares one mesh, scaled per instance) |
 | `BuildingGrammarRuntime` | Generation + proximity streaming + World Partition streaming-source/RuntimeGrid integration complete; async generation, per-actor recentering, and Data Layer assignment not implemented |
 | `BuildingGrammarEditor` | v1 menu commands (generate + JSON preset load) done; no in-editor property picker UI yet |
-| Style presets | 30 of 31 facade styles (9 native C++, 21 more via JSON import); 1 of 16 full building presets ported natively |
+| Style presets | All 31 facade styles reachable (25 native C++, 6 more via JSON import); all 16 full building presets ported natively |
 
 Every generated element now has real geometry: instanced elements (windows, doors, roof tiles,
 balconies, antennas, ...) render as a shared, non-uniformly-scaled unit box tinted per material via
