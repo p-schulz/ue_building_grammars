@@ -17,11 +17,19 @@ namespace GrammarEngineInternal
 
 	bool HasAny(const TSet<FString>& Tokens, const TSet<FString>& Values);
 
-	bool IsRetailStyle(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags);
-	bool IsIndustrialStyle(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags);
-	bool IsParkingStyle(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags);
-	bool StyleHasShutters(const FFacadeStyleConfig& Style);
-	bool ShouldAddStairCore(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags, bool bStreetFacing, double Length, double TotalHeight);
+	// These all take an already-computed StyleTokens() result rather than (Style, Tags) so that a
+	// caller iterating many facade sides/floors/windows for the same building can compute the
+	// token set once (per Style -- see BuildingGrammarEngine.cpp's per-side loop) instead of
+	// StyleTokens' string-join/lowercase/tokenize work being repeated for every call. Tokens must
+	// be StyleTokens(Style, Tags) for IsRetailStyle/IsIndustrialStyle/IsParkingStyle/
+	// ShouldAddStairCore, but StyleTokens(Style, {}) (no Tags) for StyleHasShutters -- deliberately
+	// a different token set, so it isn't tag-triggered by unrelated OSM tag text; see
+	// BuildingGrammarEngine.cpp for where both are computed.
+	bool IsRetailStyle(const TSet<FString>& Tokens, const TMap<FString, FString>& Tags);
+	bool IsIndustrialStyle(const TSet<FString>& Tokens, const TMap<FString, FString>& Tags);
+	bool IsParkingStyle(const TSet<FString>& Tokens);
+	bool StyleHasShutters(const TSet<FString>& StyleOnlyTokens);
+	bool ShouldAddStairCore(const TSet<FString>& Tokens, bool bStreetFacing, double Length, double TotalHeight);
 
 	// -1 index = no variant (always Style.WallColor); otherwise the chosen TArray index alongside
 	// its color, used to build a distinct per-variant material name via WallMaterialName. Ports

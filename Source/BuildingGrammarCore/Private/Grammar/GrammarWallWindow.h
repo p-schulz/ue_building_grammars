@@ -19,5 +19,10 @@ namespace GrammarWallWindow
 	FGrammarMeshSpec WallRowMesh(const FString& SourceName, int32 SideIndex, int32 FloorIndex, const FVector2D& Start, const FVector2D& End, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style);
 
 	FGrammarPlacementRecord WindowPlacement(const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double Offset, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style);
-	TArray<FGrammarPlacementRecord> WindowDetailPlacements(const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double Offset, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style);
+
+	// bHasShutters must be GrammarEngineInternal::StyleHasShutters(GrammarEngineInternal::StyleTokens(Style, {}))
+	// -- computed once per facade side by the caller (BuildingGrammarEngine.cpp's per-side loop)
+	// rather than recomputed on every call, since this is invoked once per window per floor per
+	// side.
+	TArray<FGrammarPlacementRecord> WindowDetailPlacements(const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double Offset, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style, bool bHasShutters);
 }

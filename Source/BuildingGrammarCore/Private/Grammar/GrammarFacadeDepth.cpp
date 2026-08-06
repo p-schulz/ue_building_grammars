@@ -18,10 +18,9 @@ namespace
 		return FGrammarPlacementHelpers::MakeBoxPlacement(Role, VariantKey, Params, Color);
 	}
 
-	TArray<FGrammarPlacementRecord> FacadePatternPlacements(const FVector2D& Start, const FVector2D& Tangent, const FVector2D& Normal, const TArray<double>& FloorHeights, double TotalHeight, const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags, double Length)
+	TArray<FGrammarPlacementRecord> FacadePatternPlacements(const FVector2D& Start, const FVector2D& Tangent, const FVector2D& Normal, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, double Length)
 	{
 		TArray<FGrammarPlacementRecord> Result;
-		const TSet<FString> Tokens = GrammarEngineInternal::StyleTokens(Style, Tags);
 
 		if (GrammarEngineInternal::HasAny(Tokens, { TEXT("plattenbau"), TEXT("prefab"), TEXT("industrial"), TEXT("warehouse"), TEXT("parking"), TEXT("office"), TEXT("curtain") }))
 		{
@@ -76,7 +75,7 @@ namespace
 
 namespace GrammarFacadeDepth
 {
-	TArray<FGrammarPlacementRecord> FacadeDepthPlacements(int32 SideIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, int32 StreetSideIndex, const TArray<double>& FloorHeights, double TotalHeight, const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags)
+	TArray<FGrammarPlacementRecord> FacadeDepthPlacements(int32 SideIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, int32 StreetSideIndex, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, const TMap<FString, FString>& Tags)
 	{
 		const double Length = FGrammarGeometry2D::Distance2D(Start, End);
 		TArray<FGrammarPlacementRecord> Result;
@@ -88,9 +87,9 @@ namespace GrammarFacadeDepth
 		const double GroundHeight = FloorHeights.Num() > 0 ? FloorHeights[0] : TotalHeight;
 		const bool bStreetFacing = SideIndex == StreetSideIndex;
 
-		const bool bIsRetail = GrammarEngineInternal::IsRetailStyle(Style, Tags);
-		const bool bIsIndustrial = GrammarEngineInternal::IsIndustrialStyle(Style, Tags);
-		const bool bIsParking = GrammarEngineInternal::IsParkingStyle(Style, Tags);
+		const bool bIsRetail = GrammarEngineInternal::IsRetailStyle(Tokens, Tags);
+		const bool bIsIndustrial = GrammarEngineInternal::IsIndustrialStyle(Tokens, Tags);
+		const bool bIsParking = GrammarEngineInternal::IsParkingStyle(Tokens);
 
 		if (bStreetFacing && bIsRetail)
 		{
@@ -131,14 +130,14 @@ namespace GrammarFacadeDepth
 			}
 		}
 
-		if (GrammarEngineInternal::ShouldAddStairCore(Style, Tags, bStreetFacing, Length, TotalHeight))
+		if (GrammarEngineInternal::ShouldAddStairCore(Tokens, bStreetFacing, Length, TotalHeight))
 		{
 			const double CoreWidth = FMath::Min(FMath::Max(Length * 0.18, 1.1), 2.4);
 			const double CoreHeight = FMath::Max(TotalHeight - 0.4, 1.0);
 			Result.Add(PanelPlacement(TEXT("stair_core"), TEXT("Grammar Stair Core Glass"), Start, Tangent, Normal, Length * 0.5, CoreWidth, 0.2, CoreHeight, 0.06, FLinearColor(0.09, 0.18, 0.22, 0.82)));
 		}
 
-		Result.Append(FacadePatternPlacements(Start, Tangent, Normal, FloorHeights, TotalHeight, Style, Tags, Length));
+		Result.Append(FacadePatternPlacements(Start, Tangent, Normal, FloorHeights, TotalHeight, Tokens, Length));
 		return Result;
 	}
 }

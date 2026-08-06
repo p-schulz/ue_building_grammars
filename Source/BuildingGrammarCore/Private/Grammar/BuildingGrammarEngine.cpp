@@ -116,6 +116,13 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 		const FVector2D& Start = Segments[SideIndex].Start;
 		const FVector2D& End = Segments[SideIndex].End;
 		const FFacadeStyleConfig& Style = Styles[WrapIndex(SideIndex - StreetSideIndex, Styles.Num())];
+		// Computed once per side rather than once per (side, floor, window) call site that needs a
+		// style classification -- see GrammarFacadeDepth::FacadeDepthPlacements and
+		// GrammarWallWindow::WindowDetailPlacements's header comments for why. Tags-tokens covers
+		// retail/industrial/parking/stair-core; StyleOnlyTokens (no Tags) is the separate,
+		// deliberately tag-independent set StyleHasShutters uses.
+		const TSet<FString> TagsTokens = GrammarEngineInternal::StyleTokens(Style, Tags);
+		const bool bHasShutters = GrammarEngineInternal::StyleHasShutters(GrammarEngineInternal::StyleTokens(Style, TMap<FString, FString>()));
 		const FVector2D Normal = FGrammarGeometry2D::OutwardNormal(Start, End, bCleanIsCCW);
 		const double Length = FGrammarGeometry2D::Distance2D(Start, End);
 		if (Length == 0.0)
@@ -158,7 +165,7 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 					continue;
 				}
 				Placements.Add(GrammarWallWindow::WindowPlacement(Start, End, Normal, Offset, FloorBottom, FloorHeight, Style));
-				Placements.Append(GrammarWallWindow::WindowDetailPlacements(Start, End, Normal, Offset, FloorBottom, FloorHeight, Style));
+				Placements.Append(GrammarWallWindow::WindowDetailPlacements(Start, End, Normal, Offset, FloorBottom, FloorHeight, Style, bHasShutters));
 
 				if (BalconyApplies(Style, FloorIndex))
 				{
@@ -173,7 +180,7 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 			}
 		}
 
-		Placements.Append(GrammarFacadeDepth::FacadeDepthPlacements(SideIndex, Start, End, Normal, StreetSideIndex, FloorHeights, TotalHeight, Style, Tags));
+		Placements.Append(GrammarFacadeDepth::FacadeDepthPlacements(SideIndex, Start, End, Normal, StreetSideIndex, FloorHeights, TotalHeight, TagsTokens, Tags));
 	}
 
 	HeroMeshes.Add(GrammarRoof::RoofMesh(SourceName, Clean, TotalHeight, Roof, Tags));

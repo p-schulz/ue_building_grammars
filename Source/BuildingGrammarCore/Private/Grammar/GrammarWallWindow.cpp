@@ -112,7 +112,7 @@ namespace GrammarWallWindow
 		return FGrammarPlacementHelpers::MakeBoxPlacement(TEXT("window"), Window.Material, Params, Window.Color);
 	}
 
-	TArray<FGrammarPlacementRecord> WindowDetailPlacements(const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double Offset, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style)
+	TArray<FGrammarPlacementRecord> WindowDetailPlacements(const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double Offset, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style, bool bHasShutters)
 	{
 		const FVector2D Tangent = FGrammarGeometry2D::Tangent(Start, End);
 		const FWindowStyleConfig& Window = Style.Window;
@@ -169,7 +169,7 @@ namespace GrammarWallWindow
 			Result.Add(FGrammarPlacementHelpers::MakeBoxPlacement(TEXT("window_sill"), Window.SillMaterial, SillParams, Window.SillColor));
 		}
 
-		if (GrammarEngineInternal::StyleHasShutters(Style))
+		if (bHasShutters)
 		{
 			const double ShutterWidth = FMath::Max(FMath::Min(Window.Width * 0.28, 0.34), 0.16);
 			const double ShutterHeight = Height + FrameWidth;

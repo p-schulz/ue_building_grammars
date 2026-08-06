@@ -70,43 +70,43 @@ namespace GrammarEngineInternal
 		return false;
 	}
 
-	bool IsRetailStyle(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags)
+	bool IsRetailStyle(const TSet<FString>& Tokens, const TMap<FString, FString>& Tags)
 	{
 		const FString* Shop = Tags.Find(TEXT("shop"));
 		if (Shop && !Shop->IsEmpty())
 		{
 			return true;
 		}
-		return HasAny(StyleTokens(Style, Tags), { TEXT("retail"), TEXT("shopfront"), TEXT("shop"), TEXT("supermarket"), TEXT("commercial") });
+		return HasAny(Tokens, { TEXT("retail"), TEXT("shopfront"), TEXT("shop"), TEXT("supermarket"), TEXT("commercial") });
 	}
 
-	bool IsIndustrialStyle(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags)
+	bool IsIndustrialStyle(const TSet<FString>& Tokens, const TMap<FString, FString>& Tags)
 	{
 		const FString* Industrial = Tags.Find(TEXT("industrial"));
 		if (Industrial && !Industrial->IsEmpty())
 		{
 			return true;
 		}
-		return HasAny(StyleTokens(Style, Tags), { TEXT("industrial"), TEXT("warehouse"), TEXT("factory"), TEXT("logistics"), TEXT("manufacturing") });
+		return HasAny(Tokens, { TEXT("industrial"), TEXT("warehouse"), TEXT("factory"), TEXT("logistics"), TEXT("manufacturing") });
 	}
 
-	bool IsParkingStyle(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags)
+	bool IsParkingStyle(const TSet<FString>& Tokens)
 	{
-		return HasAny(StyleTokens(Style, Tags), { TEXT("parking"), TEXT("garage"), TEXT("multistorey"), TEXT("car") });
+		return HasAny(Tokens, { TEXT("parking"), TEXT("garage"), TEXT("multistorey"), TEXT("car") });
 	}
 
-	bool StyleHasShutters(const FFacadeStyleConfig& Style)
+	bool StyleHasShutters(const TSet<FString>& StyleOnlyTokens)
 	{
-		return HasAny(StyleTokens(Style, TMap<FString, FString>()), { TEXT("fachwerk"), TEXT("mediterranean"), TEXT("rowhouse"), TEXT("reihenhaus"), TEXT("siedlung"), TEXT("gruenderzeit"), TEXT("jugendstil") });
+		return HasAny(StyleOnlyTokens, { TEXT("fachwerk"), TEXT("mediterranean"), TEXT("rowhouse"), TEXT("reihenhaus"), TEXT("siedlung"), TEXT("gruenderzeit"), TEXT("jugendstil") });
 	}
 
-	bool ShouldAddStairCore(const FFacadeStyleConfig& Style, const TMap<FString, FString>& Tags, bool bStreetFacing, double Length, double TotalHeight)
+	bool ShouldAddStairCore(const TSet<FString>& Tokens, bool bStreetFacing, double Length, double TotalHeight)
 	{
 		if (bStreetFacing || Length < 4.0 || TotalHeight < 7.0)
 		{
 			return false;
 		}
-		return HasAny(StyleTokens(Style, Tags), { TEXT("office"), TEXT("parking"), TEXT("plattenbau"), TEXT("apartment"), TEXT("apartments"), TEXT("residential"), TEXT("modern") });
+		return HasAny(Tokens, { TEXT("office"), TEXT("parking"), TEXT("plattenbau"), TEXT("apartment"), TEXT("apartments"), TEXT("residential"), TEXT("modern") });
 	}
 
 	TPair<int32, FLinearColor> VariantWallColor(const FFacadeStyleConfig& Style, const FString& SourceName, int32 SideIndex)

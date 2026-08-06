@@ -74,7 +74,15 @@ namespace
 		return BestIndex;
 	}
 
-	int32 FindMatchingParent(const FBuildingFootprint& Part, const TArray<FBuildingFootprint>& Parents, double Tolerance)
+	// ParentBounds[i] must be FGrammarGeometry2D::Bounds(Parents[i].OuterRing), precomputed once by
+	// the caller (Resolve(), below) rather than per part -- a part's centroid can only be inside a
+	// parent's ring (or within Tolerance of its boundary) if it's also inside that parent's
+	// bounding box (expanded by Tolerance for the boundary-distance check), so testing the box
+	// first -- a handful of double comparisons -- skips the O(ring vertex count) PointInRing/
+	// DistanceToRingBoundary call for every parent that obviously can't match. Never rejects a
+	// true match: the ring always lies within its own bounding box, so this is a sound necessary
+	// condition, not an approximation.
+	int32 FindMatchingParent(const FBuildingFootprint& Part, const TArray<FBuildingFootprint>& Parents, const TArray<FBox2D>& ParentBounds, double Tolerance)
 	{
 		const FString ExplicitKey = ExplicitParentKey(Part.Tags);
 		if (!ExplicitKey.IsEmpty())
@@ -97,6 +105,10 @@ namespace
 		TArray<int32> Containing;
 		for (int32 Index = 0; Index < Parents.Num(); ++Index)
 		{
+			if (!ParentBounds[Index].IsInsideOrOn(Centroid))
+			{
+				continue;
+			}
 			if (FGrammarGeometry2D::PointInRing(Centroid, Parents[Index].OuterRing))
 			{
 				Containing.Add(Index);
@@ -112,6 +124,10 @@ namespace
 			TArray<int32> Near;
 			for (int32 Index = 0; Index < Parents.Num(); ++Index)
 			{
+				if (!ParentBounds[Index].ExpandBy(Tolerance).IsInsideOrOn(Centroid))
+				{
+					continue;
+				}
 				if (DistanceToRingBoundary(Centroid, Parents[Index].OuterRing) <= Tolerance)
 				{
 					Near.Add(Index);
@@ -152,12 +168,19 @@ TArray<FGrammarBuildingVolume> FBuildingPartResolver::Resolve(const TArray<FBuil
 		(Footprint.bIsBuildingPart ? Parts : Parents).Add(Footprint);
 	}
 
+	TArray<FBox2D> ParentBounds;
+	ParentBounds.Reserve(Parents.Num());
+	for (const FBuildingFootprint& Parent : Parents)
+	{
+		ParentBounds.Add(FGrammarGeometry2D::Bounds(Parent.OuterRing));
+	}
+
 	TArray<int32> MatchedParentIndex;
 	MatchedParentIndex.SetNumUninitialized(Parts.Num());
 	TSet<int32> ParentsWithMatchedParts;
 	for (int32 PartIndex = 0; PartIndex < Parts.Num(); ++PartIndex)
 	{
-		const int32 ParentIndex = FindMatchingParent(Parts[PartIndex], Parents, Config.BuildingPartMatchTolerance);
+		const int32 ParentIndex = FindMatchingParent(Parts[PartIndex], Parents, ParentBounds, Config.BuildingPartMatchTolerance);
 		MatchedParentIndex[PartIndex] = ParentIndex;
 		if (ParentIndex != INDEX_NONE)
 		{
