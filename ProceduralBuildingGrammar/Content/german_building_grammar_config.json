@@ -1,0 +1,5575 @@
+{
+  "root_collection": "Procedural Buildings",
+  "source_collection": "Buildings",
+  "include_selected_only": false,
+  "replace_existing": true,
+  "enable_building_parts": true,
+  "skip_parent_footprints_with_parts": true,
+  "inherit_parent_tags_for_parts": true,
+  "building_part_match_tolerance": 0.25,
+  "use_mesh_instancing": true,
+  "batch_generated_meshes": true,
+  "batch_roles": [
+    "window",
+    "window_frame",
+    "window_mullion",
+    "window_sill",
+    "ledge",
+    "balcony",
+    "balcony_rail",
+    "balcony_bar",
+    "door_frame",
+    "door_handle",
+    "door_canopy",
+    "roof_edge",
+    "roof_lamp",
+    "antenna",
+    "antenna_panel",
+    "signboard",
+    "awning",
+    "garage_door",
+    "loading_dock",
+    "stair_core",
+    "shutter",
+    "facade_ornament",
+    "panel_seam",
+    "insulation_band",
+    "roof_tile",
+    "roof_window",
+    "dormer",
+    "chimney",
+    "gutter",
+    "pv_panel",
+    "hvac_unit",
+    "roof_plant"
+  ],
+  "default_levels": 5,
+  "default_floor_height": 3.1,
+  "irregular_floor_heights": {
+    "0": 4.1
+  },
+  "excluded_building_values": [
+    "shelter"
+  ],
+  "styles": [
+    {
+      "name": "gruenderzeit_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Stucco Sandstone",
+      "wall_color": [
+        0.72,
+        0.64,
+        0.5,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.05,
+        "height": 1.85,
+        "sill_height": 0.75,
+        "spacing": 2.25,
+        "min_margin": 0.65,
+        "depth": 0.08,
+        "material": "Grammar Tall Altbau Glass",
+        "color": [
+          0.13,
+          0.21,
+          0.25,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.11,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Painted Altbau Frames",
+        "frame_color": [
+          0.9,
+          0.86,
+          0.76,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.28,
+        "sill_thickness": 0.08,
+        "sill_material": "Grammar Sandstone Window Sills",
+        "sill_color": [
+          0.82,
+          0.76,
+          0.64,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.22,
+        "height": 0.1,
+        "every_n_floors": 1,
+        "material": "Grammar Stucco Cornices",
+        "color": [
+          0.82,
+          0.76,
+          0.64,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 1.7,
+        "depth": 0.55,
+        "slab_height": 0.1,
+        "railing_height": 0.95,
+        "every_n_floors": 2,
+        "material": "Grammar Gruenderzeit Ironwork",
+        "color": [
+          0.035,
+          0.03,
+          0.025,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Ornate Iron Railings",
+        "railing_color": [
+          0.025,
+          0.022,
+          0.02,
+          1.0
+        ],
+        "railing_bar_count": 7,
+        "railing_bar_width": 0.035,
+        "railing_bar_depth": 0.035
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Altbau Timber Door",
+        "color": [
+          0.16,
+          0.075,
+          0.035,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Sandstone Door Portal",
+        "frame_color": [
+          0.82,
+          0.76,
+          0.64,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "tv",
+        "count": 1,
+        "mast_height": 1.25,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "jugendstil_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Jugendstil Plaster",
+      "wall_color": [
+        0.78,
+        0.7,
+        0.58,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.78,
+          0.7,
+          0.58,
+          1.0
+        ],
+        [
+          0.72,
+          0.66,
+          0.56,
+          1.0
+        ],
+        [
+          0.82,
+          0.76,
+          0.64,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "building",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.18,
+        "height": 1.75,
+        "sill_height": 0.82,
+        "spacing": 2.45,
+        "min_margin": 0.7,
+        "depth": 0.075,
+        "material": "Grammar Jugendstil Glass",
+        "color": [
+          0.12,
+          0.2,
+          0.24,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.1,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Jugendstil Painted Frames",
+        "frame_color": [
+          0.88,
+          0.84,
+          0.76,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 2,
+        "sill_depth": 0.24,
+        "sill_thickness": 0.08,
+        "sill_material": "Grammar Jugendstil Stone Sills",
+        "sill_color": [
+          0.8,
+          0.74,
+          0.64,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.2,
+        "height": 0.09,
+        "every_n_floors": 1,
+        "material": "Grammar Jugendstil Floral Bands",
+        "color": [
+          0.84,
+          0.78,
+          0.68,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 1.85,
+        "depth": 0.58,
+        "slab_height": 0.1,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Jugendstil Balcony Slabs",
+        "color": [
+          0.72,
+          0.66,
+          0.56,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Curved Iron Balcony Railings",
+        "railing_color": [
+          0.035,
+          0.032,
+          0.028,
+          1.0
+        ],
+        "railing_bar_count": 8,
+        "railing_bar_width": 0.03,
+        "railing_bar_depth": 0.03
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.55,
+        "height": 2.65,
+        "depth": 0.1,
+        "material": "Grammar Jugendstil Carved Timber Door",
+        "color": [
+          0.18,
+          0.075,
+          0.035,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.18,
+        "frame_depth": 0.06,
+        "frame_material": "Grammar Jugendstil Portal Stone",
+        "frame_color": [
+          0.84,
+          0.78,
+          0.66,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.05,
+        "handle_material": "Grammar Brass Door Handles",
+        "handle_color": [
+          0.82,
+          0.64,
+          0.28,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.8,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Door Canopies",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "lightning_rod",
+        "count": 1,
+        "mast_height": 1.9,
+        "mast_radius": 0.018,
+        "base_width": 0.18,
+        "base_depth": 0.18,
+        "base_height": 0.08,
+        "panel_width": 0.12,
+        "panel_height": 0.35,
+        "panel_depth": 0.02,
+        "material": "Grammar Lightning Rod Steel",
+        "color": [
+          0.42,
+          0.42,
+          0.39,
+          1.0
+        ],
+        "accent_material": "Grammar Lightning Rod Tip",
+        "accent_color": [
+          0.76,
+          0.74,
+          0.66,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "fachwerk_townhouse",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Fachwerk Infill",
+      "wall_color": [
+        0.86,
+        0.82,
+        0.7,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [
+        [
+          0.48,
+          0.32,
+          0.18,
+          1.0
+        ],
+        [
+          0.86,
+          0.82,
+          0.7,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 0.92,
+        "height": 1.15,
+        "sill_height": 0.95,
+        "spacing": 2.1,
+        "min_margin": 0.7,
+        "depth": 0.06,
+        "material": "Grammar Small Timber Window Glass",
+        "color": [
+          0.13,
+          0.22,
+          0.24,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.095,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Dark Timber Window Frames",
+        "frame_color": [
+          0.16,
+          0.09,
+          0.045,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.13,
+        "sill_thickness": 0.05,
+        "sill_material": "Grammar Timber Window Sills",
+        "sill_color": [
+          0.2,
+          0.12,
+          0.06,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.09,
+        "height": 0.06,
+        "every_n_floors": 1,
+        "material": "Grammar Fachwerk Floor Beams",
+        "color": [
+          0.18,
+          0.1,
+          0.05,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.15,
+        "height": 2.05,
+        "depth": 0.1,
+        "material": "Grammar Fachwerk Timber Door",
+        "color": [
+          0.14,
+          0.075,
+          0.035,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.14,
+        "frame_depth": 0.06,
+        "frame_material": "Grammar Fachwerk Door Beams",
+        "frame_color": [
+          0.18,
+          0.1,
+          0.05,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.04,
+        "handle_material": "Grammar Iron Latch Handles",
+        "handle_color": [
+          0.05,
+          0.045,
+          0.04,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.55,
+        "canopy_depth": 0.58,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Fachwerk Small Canopy",
+        "canopy_color": [
+          0.24,
+          0.13,
+          0.06,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "satellite",
+        "count": 1,
+        "mast_height": 0.75,
+        "mast_radius": 0.025,
+        "base_width": 0.32,
+        "base_depth": 0.32,
+        "base_height": 0.12,
+        "panel_width": 0.55,
+        "panel_height": 0.55,
+        "panel_depth": 0.05,
+        "material": "Grammar Satellite Mount Metal",
+        "color": [
+          0.3,
+          0.3,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Pale Satellite Dish",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "bauhaus_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Bauhaus White Render",
+      "wall_color": [
+        0.9,
+        0.89,
+        0.84,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.95,
+        "height": 1.15,
+        "sill_height": 1.05,
+        "spacing": 2.35,
+        "min_margin": 0.55,
+        "depth": 0.035,
+        "material": "Grammar Bauhaus Dark Frames",
+        "color": [
+          0.08,
+          0.1,
+          0.11,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.06,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Bauhaus Steel Frames",
+        "frame_color": [
+          0.06,
+          0.065,
+          0.065,
+          1.0
+        ],
+        "vertical_mullions": 2,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.1,
+        "sill_thickness": 0.04,
+        "sill_material": "Grammar Bauhaus Thin Sills",
+        "sill_color": [
+          0.72,
+          0.72,
+          0.68,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.08,
+        "height": 0.05,
+        "every_n_floors": 2,
+        "material": "Grammar Bauhaus Concrete Bands",
+        "color": [
+          0.72,
+          0.72,
+          0.68,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 2.2,
+        "depth": 0.7,
+        "slab_height": 0.12,
+        "railing_height": 0.85,
+        "every_n_floors": 2,
+        "material": "Grammar Bauhaus Railings",
+        "color": [
+          0.12,
+          0.12,
+          0.11,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Bauhaus Tubular Railings",
+        "railing_color": [
+          0.08,
+          0.08,
+          0.075,
+          1.0
+        ],
+        "railing_bar_count": 4,
+        "railing_bar_width": 0.045,
+        "railing_bar_depth": 0.045
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Bauhaus Entrance Door",
+        "color": [
+          0.07,
+          0.075,
+          0.075,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Bauhaus Door Frames",
+        "frame_color": [
+          0.06,
+          0.065,
+          0.065,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "radio",
+        "count": 1,
+        "mast_height": 1.05,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "siedlung_1920s_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Siedlung Smooth Render",
+      "wall_color": [
+        0.78,
+        0.77,
+        0.68,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.78,
+          0.77,
+          0.68,
+          1.0
+        ],
+        [
+          0.74,
+          0.78,
+          0.72,
+          1.0
+        ],
+        [
+          0.8,
+          0.74,
+          0.66,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "building",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.2,
+        "height": 1.25,
+        "sill_height": 0.92,
+        "spacing": 2.65,
+        "min_margin": 0.8,
+        "depth": 0.045,
+        "material": "Grammar Siedlung Window Glass",
+        "color": [
+          0.15,
+          0.24,
+          0.28,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.075,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Siedlung White Frames",
+        "frame_color": [
+          0.88,
+          0.88,
+          0.82,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.12,
+        "sill_thickness": 0.045,
+        "sill_material": "Grammar Siedlung Concrete Sills",
+        "sill_color": [
+          0.68,
+          0.68,
+          0.62,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.08,
+        "height": 0.05,
+        "every_n_floors": 2,
+        "material": "Grammar Siedlung Simple Bands",
+        "color": [
+          0.66,
+          0.66,
+          0.6,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 1.8,
+        "depth": 0.65,
+        "slab_height": 0.12,
+        "railing_height": 0.85,
+        "every_n_floors": 2,
+        "material": "Grammar Siedlung Balcony Slabs",
+        "color": [
+          0.64,
+          0.64,
+          0.58,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Siedlung Pipe Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 4,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Siedlung Painted Door",
+        "color": [
+          0.18,
+          0.22,
+          0.16,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Siedlung Door Surround",
+        "frame_color": [
+          0.68,
+          0.68,
+          0.62,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "radio",
+        "count": 1,
+        "mast_height": 1.25,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "nachkriegsmoderne_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Postwar Mineral Render",
+      "wall_color": [
+        0.7,
+        0.72,
+        0.66,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.45,
+        "height": 1.35,
+        "sill_height": 0.9,
+        "spacing": 2.75,
+        "min_margin": 0.8,
+        "depth": 0.04,
+        "material": "Grammar Postwar Window Glass",
+        "color": [
+          0.16,
+          0.24,
+          0.28,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.08,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Postwar White Frames",
+        "frame_color": [
+          0.86,
+          0.86,
+          0.82,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.16,
+        "sill_thickness": 0.05,
+        "sill_material": "Grammar Postwar Concrete Sills",
+        "sill_color": [
+          0.62,
+          0.63,
+          0.59,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.07,
+        "height": 0.05,
+        "every_n_floors": 2,
+        "material": "Grammar Postwar Horizontal Seams",
+        "color": [
+          0.58,
+          0.6,
+          0.56,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 2.35,
+        "depth": 0.8,
+        "slab_height": 0.14,
+        "railing_height": 0.9,
+        "every_n_floors": 1,
+        "material": "Grammar Postwar Balcony Panels",
+        "color": [
+          0.52,
+          0.56,
+          0.54,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Postwar Metal Railings",
+        "railing_color": [
+          0.22,
+          0.24,
+          0.23,
+          1.0
+        ],
+        "railing_bar_count": 3,
+        "railing_bar_width": 0.05,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Postwar House Door",
+        "color": [
+          0.22,
+          0.24,
+          0.2,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Postwar Concrete Door Frames",
+        "frame_color": [
+          0.62,
+          0.63,
+          0.59,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "tv",
+        "count": 1,
+        "mast_height": 1.15,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "plattenbau_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Prefab Concrete Panels",
+      "wall_color": [
+        0.62,
+        0.63,
+        0.6,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [
+        [
+          0.54,
+          0.55,
+          0.53,
+          1.0
+        ],
+        [
+          0.62,
+          0.63,
+          0.6,
+          1.0
+        ],
+        [
+          0.68,
+          0.68,
+          0.63,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.25,
+        "height": 1.2,
+        "sill_height": 0.9,
+        "spacing": 2.55,
+        "min_margin": 0.75,
+        "depth": 0.035,
+        "material": "Grammar Prefab Window Glass",
+        "color": [
+          0.17,
+          0.25,
+          0.29,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.075,
+        "frame_depth": 0.03,
+        "frame_material": "Grammar Prefab Plastic Frames",
+        "frame_color": [
+          0.86,
+          0.86,
+          0.82,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.12,
+        "sill_thickness": 0.04,
+        "sill_material": "Grammar Prefab Thin Sills",
+        "sill_color": [
+          0.72,
+          0.72,
+          0.68,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.05,
+        "height": 0.04,
+        "every_n_floors": 1,
+        "material": "Grammar Prefab Panel Joints",
+        "color": [
+          0.45,
+          0.46,
+          0.44,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 2.6,
+        "depth": 0.9,
+        "slab_height": 0.14,
+        "railing_height": 0.95,
+        "every_n_floors": 1,
+        "material": "Grammar Prefab Loggia Panels",
+        "color": [
+          0.78,
+          0.76,
+          0.68,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Prefab Loggia Rails",
+        "railing_color": [
+          0.34,
+          0.35,
+          0.34,
+          1.0
+        ],
+        "railing_bar_count": 2,
+        "railing_bar_width": 0.06,
+        "railing_bar_depth": 0.05
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Prefab Entrance Door",
+        "color": [
+          0.16,
+          0.18,
+          0.17,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Prefab Concrete Door Frames",
+        "frame_color": [
+          0.72,
+          0.72,
+          0.68,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "tv",
+        "count": 2,
+        "mast_height": 1.35,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "reihenhaus_1990s_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Reihenhaus Render",
+      "wall_color": [
+        0.82,
+        0.78,
+        0.66,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.82,
+          0.78,
+          0.66,
+          1.0
+        ],
+        [
+          0.76,
+          0.78,
+          0.7,
+          1.0
+        ],
+        [
+          0.86,
+          0.82,
+          0.72,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "building",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.15,
+        "height": 1.35,
+        "sill_height": 0.85,
+        "spacing": 2.75,
+        "min_margin": 0.85,
+        "depth": 0.04,
+        "material": "Grammar Reihenhaus Double Glazing",
+        "color": [
+          0.12,
+          0.22,
+          0.26,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.075,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar White Plastic Frames",
+        "frame_color": [
+          0.9,
+          0.9,
+          0.86,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.12,
+        "sill_thickness": 0.045,
+        "sill_material": "Grammar Aluminum Window Sills",
+        "sill_color": [
+          0.58,
+          0.6,
+          0.58,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.06,
+        "height": 0.04,
+        "every_n_floors": 2,
+        "material": "Grammar Reihenhaus Plinth Band",
+        "color": [
+          0.58,
+          0.58,
+          0.52,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 2.15,
+        "depth": 0.85,
+        "slab_height": 0.13,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Reihenhaus Balcony Concrete",
+        "color": [
+          0.62,
+          0.62,
+          0.58,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Reihenhaus Steel Railings",
+        "railing_color": [
+          0.24,
+          0.25,
+          0.24,
+          1.0
+        ],
+        "railing_bar_count": 4,
+        "railing_bar_width": 0.045,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.05,
+        "height": 2.18,
+        "depth": 0.075,
+        "material": "Grammar Reihenhaus Colored Door",
+        "color": [
+          0.08,
+          0.2,
+          0.24,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.1,
+        "frame_depth": 0.04,
+        "frame_material": "Grammar White Plastic Door Frames",
+        "frame_color": [
+          0.9,
+          0.9,
+          0.86,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Chrome Door Handles",
+        "handle_color": [
+          0.72,
+          0.72,
+          0.68,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.7,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Reihenhaus Glass Canopy",
+        "canopy_color": [
+          0.42,
+          0.5,
+          0.52,
+          0.72
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "satellite",
+        "count": 2,
+        "mast_height": 0.8,
+        "mast_radius": 0.025,
+        "base_width": 0.32,
+        "base_depth": 0.32,
+        "base_height": 0.12,
+        "panel_width": 0.55,
+        "panel_height": 0.55,
+        "panel_depth": 0.05,
+        "material": "Grammar Satellite Mount Metal",
+        "color": [
+          0.3,
+          0.3,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Pale Satellite Dish",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "contemporary_german_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Contemporary Mineral Render",
+      "wall_color": [
+        0.82,
+        0.82,
+        0.78,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.65,
+        "height": 1.9,
+        "sill_height": 0.45,
+        "spacing": 2.85,
+        "min_margin": 0.75,
+        "depth": 0.035,
+        "material": "Grammar Contemporary Triple Glazing",
+        "color": [
+          0.12,
+          0.22,
+          0.26,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.065,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Contemporary Anthracite Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.08,
+          1.0
+        ],
+        "vertical_mullions": 0,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.08,
+        "sill_thickness": 0.04,
+        "sill_material": "Grammar Flush Metal Sills",
+        "sill_color": [
+          0.48,
+          0.5,
+          0.48,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.06,
+        "height": 0.05,
+        "every_n_floors": 3,
+        "material": "Grammar Contemporary Shadow Joints",
+        "color": [
+          0.62,
+          0.62,
+          0.58,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 2.8,
+        "depth": 1.0,
+        "slab_height": 0.14,
+        "railing_height": 1.0,
+        "every_n_floors": 1,
+        "material": "Grammar Glass Balcony Railings",
+        "color": [
+          0.36,
+          0.46,
+          0.48,
+          0.86
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Laminated Glass Rails",
+        "railing_color": [
+          0.38,
+          0.5,
+          0.54,
+          0.78
+        ],
+        "railing_bar_count": 0,
+        "railing_bar_width": 0.03,
+        "railing_bar_depth": 0.03
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Contemporary Entrance Glass",
+        "color": [
+          0.1,
+          0.18,
+          0.2,
+          0.9
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Contemporary Anthracite Door Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.08,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "radio",
+        "count": 1,
+        "mast_height": 1.1,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "passivhaus_residential",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Passivhaus Mineral Render",
+      "wall_color": [
+        0.86,
+        0.86,
+        0.8,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [
+        [
+          0.66,
+          0.68,
+          0.62,
+          1.0
+        ],
+        [
+          0.86,
+          0.86,
+          0.8,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 1.9,
+        "height": 2.05,
+        "sill_height": 0.35,
+        "spacing": 3.1,
+        "min_margin": 0.65,
+        "depth": 0.035,
+        "material": "Grammar Passivhaus Triple Glazing",
+        "color": [
+          0.11,
+          0.22,
+          0.25,
+          0.92
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.055,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Passivhaus Timber Aluminum Frames",
+        "frame_color": [
+          0.18,
+          0.2,
+          0.18,
+          1.0
+        ],
+        "vertical_mullions": 0,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.08,
+        "sill_thickness": 0.035,
+        "sill_material": "Grammar Flush Passivhaus Sills",
+        "sill_color": [
+          0.48,
+          0.5,
+          0.48,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.05,
+        "height": 0.04,
+        "every_n_floors": 3,
+        "material": "Grammar Passivhaus Shadow Joints",
+        "color": [
+          0.64,
+          0.66,
+          0.62,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 2.6,
+        "depth": 1.0,
+        "slab_height": 0.12,
+        "railing_height": 1.0,
+        "every_n_floors": 1,
+        "material": "Grammar Passivhaus Balcony Slabs",
+        "color": [
+          0.58,
+          0.6,
+          0.56,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Passivhaus Glass Railings",
+        "railing_color": [
+          0.36,
+          0.48,
+          0.5,
+          0.72
+        ],
+        "railing_bar_count": 0,
+        "railing_bar_width": 0.03,
+        "railing_bar_depth": 0.03
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.2,
+        "height": 2.35,
+        "depth": 0.06,
+        "material": "Grammar Passivhaus Flush Entrance Door",
+        "color": [
+          0.12,
+          0.14,
+          0.13,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.07,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Passivhaus Recessed Door Frames",
+        "frame_color": [
+          0.18,
+          0.2,
+          0.18,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.035,
+        "handle_material": "Grammar Minimal Pull Handles",
+        "handle_color": [
+          0.7,
+          0.7,
+          0.64,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.85,
+        "canopy_depth": 0.65,
+        "canopy_thickness": 0.06,
+        "canopy_material": "Grammar Thin Passivhaus Canopy",
+        "canopy_color": [
+          0.2,
+          0.22,
+          0.2,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "lightning_rod",
+        "count": 1,
+        "mast_height": 1.35,
+        "mast_radius": 0.018,
+        "base_width": 0.18,
+        "base_depth": 0.18,
+        "base_height": 0.08,
+        "panel_width": 0.12,
+        "panel_height": 0.35,
+        "panel_depth": 0.02,
+        "material": "Grammar Lightning Rod Steel",
+        "color": [
+          0.42,
+          0.42,
+          0.39,
+          1.0
+        ],
+        "accent_material": "Grammar Lightning Rod Tip",
+        "accent_color": [
+          0.76,
+          0.74,
+          0.66,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "german_office_grid",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Office Aluminum Grid",
+      "wall_color": [
+        0.22,
+        0.23,
+        0.24,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 2.15,
+        "height": 2.05,
+        "sill_height": 0.45,
+        "spacing": 2.45,
+        "min_margin": 0.45,
+        "depth": 0.025,
+        "material": "Grammar Office Solar Glass",
+        "color": [
+          0.08,
+          0.22,
+          0.3,
+          0.9
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.055,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Office Dark Mullions",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.09,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.04,
+        "sill_thickness": 0.03,
+        "sill_material": "Grammar Office Drip Edges",
+        "sill_color": [
+          0.42,
+          0.44,
+          0.44,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.08,
+        "height": 0.05,
+        "every_n_floors": 1,
+        "material": "Grammar Office Floor Bands",
+        "color": [
+          0.48,
+          0.5,
+          0.5,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.2,
+        "height": 3.1,
+        "depth": 0.06,
+        "material": "Grammar Office Entrance Glass",
+        "color": [
+          0.1,
+          0.2,
+          0.25,
+          0.88
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.09,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Office Entrance Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.09,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.04,
+        "handle_material": "Grammar Stainless Door Handles",
+        "handle_color": [
+          0.75,
+          0.74,
+          0.68,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 3.0,
+        "canopy_depth": 1.0,
+        "canopy_thickness": 0.1,
+        "canopy_material": "Grammar Office Entrance Canopy",
+        "canopy_color": [
+          0.18,
+          0.19,
+          0.19,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "office_cluster",
+        "count": 2,
+        "mast_height": 3.4,
+        "mast_radius": 0.06,
+        "base_width": 0.8,
+        "base_depth": 0.65,
+        "base_height": 0.28,
+        "panel_width": 0.42,
+        "panel_height": 1.25,
+        "panel_depth": 0.08,
+        "material": "Grammar Communication Mast Steel",
+        "color": [
+          0.28,
+          0.29,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Cellular Antenna Panels",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "steel_curtain_wall_office",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Brushed Steel Curtain Wall",
+      "wall_color": [
+        0.18,
+        0.2,
+        0.21,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.18,
+          0.2,
+          0.21,
+          1.0
+        ],
+        [
+          0.16,
+          0.18,
+          0.19,
+          1.0
+        ],
+        [
+          0.22,
+          0.23,
+          0.23,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "facade",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 2.85,
+        "height": 2.75,
+        "sill_height": 0.18,
+        "spacing": 2.95,
+        "min_margin": 0.35,
+        "depth": 0.025,
+        "material": "Grammar Full Height Blue Low-E Glass",
+        "color": [
+          0.06,
+          0.22,
+          0.3,
+          0.82
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.045,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Stainless Steel Curtain Mullions",
+        "frame_color": [
+          0.52,
+          0.54,
+          0.54,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.035,
+        "sill_thickness": 0.025,
+        "sill_material": "Grammar Stainless Drip Edge",
+        "sill_color": [
+          0.62,
+          0.64,
+          0.64,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.07,
+        "height": 0.045,
+        "every_n_floors": 1,
+        "material": "Grammar Exposed Steel Floor Edge",
+        "color": [
+          0.48,
+          0.5,
+          0.5,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.2,
+        "height": 3.1,
+        "depth": 0.06,
+        "material": "Grammar Office Entrance Glass",
+        "color": [
+          0.1,
+          0.2,
+          0.25,
+          0.88
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.09,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Office Entrance Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.09,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.04,
+        "handle_material": "Grammar Stainless Door Handles",
+        "handle_color": [
+          0.75,
+          0.74,
+          0.68,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 3.0,
+        "canopy_depth": 1.0,
+        "canopy_thickness": 0.1,
+        "canopy_material": "Grammar Office Entrance Canopy",
+        "canopy_color": [
+          0.18,
+          0.19,
+          0.19,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "office_cluster",
+        "count": 2,
+        "mast_height": 3.6,
+        "mast_radius": 0.06,
+        "base_width": 0.8,
+        "base_depth": 0.65,
+        "base_height": 0.28,
+        "panel_width": 0.42,
+        "panel_height": 1.25,
+        "panel_depth": 0.08,
+        "material": "Grammar Communication Mast Steel",
+        "color": [
+          0.28,
+          0.29,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Cellular Antenna Panels",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "exposed_steel_brace_office",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Dark Exposed Steel Frame",
+      "wall_color": [
+        0.12,
+        0.13,
+        0.135,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [
+        [
+          0.08,
+          0.085,
+          0.09,
+          1.0
+        ],
+        [
+          0.13,
+          0.14,
+          0.145,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 3.2,
+        "height": 2.55,
+        "sill_height": 0.28,
+        "spacing": 3.35,
+        "min_margin": 0.45,
+        "depth": 0.03,
+        "material": "Grammar Clear Structural Glass",
+        "color": [
+          0.08,
+          0.26,
+          0.32,
+          0.78
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.075,
+        "frame_depth": 0.055,
+        "frame_material": "Grammar Black Steel Mega Frame",
+        "frame_color": [
+          0.035,
+          0.038,
+          0.04,
+          1.0
+        ],
+        "vertical_mullions": 2,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.045,
+        "sill_thickness": 0.035,
+        "sill_material": "Grammar Black Steel Sills",
+        "sill_color": [
+          0.05,
+          0.052,
+          0.052,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.12,
+        "height": 0.08,
+        "every_n_floors": 1,
+        "material": "Grammar Black Steel Belt Truss",
+        "color": [
+          0.035,
+          0.038,
+          0.04,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.2,
+        "height": 3.1,
+        "depth": 0.06,
+        "material": "Grammar Office Entrance Glass",
+        "color": [
+          0.1,
+          0.2,
+          0.25,
+          0.88
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.09,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Office Entrance Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.09,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.04,
+        "handle_material": "Grammar Stainless Door Handles",
+        "handle_color": [
+          0.75,
+          0.74,
+          0.68,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 3.0,
+        "canopy_depth": 1.0,
+        "canopy_thickness": 0.1,
+        "canopy_material": "Grammar Office Entrance Canopy",
+        "canopy_color": [
+          0.18,
+          0.19,
+          0.19,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "cellular",
+        "count": 3,
+        "mast_height": 3.8,
+        "mast_radius": 0.06,
+        "base_width": 0.8,
+        "base_depth": 0.65,
+        "base_height": 0.28,
+        "panel_width": 0.42,
+        "panel_height": 1.25,
+        "panel_depth": 0.08,
+        "material": "Grammar Communication Mast Steel",
+        "color": [
+          0.28,
+          0.29,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Cellular Antenna Panels",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "atrium_glass_tower_office",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Pale Steel Atrium Grid",
+      "wall_color": [
+        0.7,
+        0.72,
+        0.7,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 3.6,
+        "height": 3.05,
+        "sill_height": 0.05,
+        "spacing": 3.75,
+        "min_margin": 0.3,
+        "depth": 0.02,
+        "material": "Grammar Tall Atrium Reflective Glass",
+        "color": [
+          0.12,
+          0.34,
+          0.42,
+          0.72
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.04,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Satin Steel Atrium Mullions",
+        "frame_color": [
+          0.68,
+          0.7,
+          0.68,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.025,
+        "sill_thickness": 0.02,
+        "sill_material": "Grammar Satin Steel Drip Edge",
+        "sill_color": [
+          0.72,
+          0.74,
+          0.72,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.05,
+        "height": 0.04,
+        "every_n_floors": 2,
+        "material": "Grammar Pale Steel Atrium Floor Line",
+        "color": [
+          0.74,
+          0.75,
+          0.72,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.55,
+        "height": 3.0,
+        "depth": 0.06,
+        "material": "Grammar Double Height Office Lobby Glass",
+        "color": [
+          0.08,
+          0.24,
+          0.3,
+          0.82
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.08,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Satin Steel Lobby Frames",
+        "frame_color": [
+          0.66,
+          0.68,
+          0.66,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Shopfront Pull Handles",
+        "handle_color": [
+          0.72,
+          0.72,
+          0.66,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 3.4,
+        "canopy_depth": 0.9,
+        "canopy_thickness": 0.09,
+        "canopy_material": "Grammar Shopfront Awning Edge",
+        "canopy_color": [
+          0.18,
+          0.18,
+          0.16,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "office_cluster",
+        "count": 3,
+        "mast_height": 4.0,
+        "mast_radius": 0.06,
+        "base_width": 0.8,
+        "base_depth": 0.65,
+        "base_height": 0.28,
+        "panel_width": 0.42,
+        "panel_height": 1.25,
+        "panel_depth": 0.08,
+        "material": "Grammar Communication Mast Steel",
+        "color": [
+          0.28,
+          0.29,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Cellular Antenna Panels",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "open_deck_parking_garage",
+      "building_values": [
+        "parking",
+        "parking_garage",
+        "car_park"
+      ],
+      "tag_filters": {
+        "amenity": [
+          "parking"
+        ],
+        "parking": [
+          "multi-storey",
+          "multistorey",
+          "garage"
+        ]
+      },
+      "default_levels": 5,
+      "default_floor_height": 3.0,
+      "roof": {
+        "type": "flat",
+        "height": 0.35,
+        "overhang": 0.05,
+        "ridge_alignment": "closest_street",
+        "material": "Grammar Parking Top Deck Asphalt",
+        "color": [
+          0.18,
+          0.19,
+          0.18,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": true,
+        "edge_width": 0.28,
+        "edge_height": 0.55,
+        "surface_inset": 0.04,
+        "edge_material": "Grammar Parking Concrete Parapet",
+        "edge_color": [
+          0.55,
+          0.55,
+          0.52,
+          1.0
+        ],
+        "corner_cap_size": 0.45,
+        "tile_rows": 6,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Open Parking Void",
+      "wall_color": [
+        0.18,
+        0.18,
+        0.17,
+        0.22
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [
+        [
+          0.48,
+          0.48,
+          0.45,
+          1.0
+        ],
+        [
+          0.18,
+          0.18,
+          0.17,
+          0.18
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 3.4,
+        "height": 1.85,
+        "sill_height": 0.55,
+        "spacing": 3.55,
+        "min_margin": 0.35,
+        "depth": 0.025,
+        "material": "Grammar Open Parking Bays",
+        "color": [
+          0.08,
+          0.09,
+          0.09,
+          0.18
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.07,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Galvanized Parking Steel",
+        "frame_color": [
+          0.42,
+          0.44,
+          0.42,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.1,
+        "sill_thickness": 0.06,
+        "sill_material": "Grammar Parking Edge Beam",
+        "sill_color": [
+          0.54,
+          0.54,
+          0.5,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.2,
+        "height": 0.13,
+        "every_n_floors": 1,
+        "material": "Grammar Parking Floor Slab Edges",
+        "color": [
+          0.5,
+          0.5,
+          0.47,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 3.2,
+        "depth": 0.16,
+        "slab_height": 0.08,
+        "railing_height": 0.72,
+        "every_n_floors": 1,
+        "material": "Grammar Parking Guard Rail",
+        "color": [
+          0.42,
+          0.43,
+          0.4,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Parking Guard Rail Steel",
+        "railing_color": [
+          0.24,
+          0.25,
+          0.24,
+          1.0
+        ],
+        "railing_bar_count": 4,
+        "railing_bar_width": 0.045,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.7,
+        "height": 2.6,
+        "depth": 0.06,
+        "material": "Grammar Parking Pedestrian Core Door",
+        "color": [
+          0.08,
+          0.1,
+          0.1,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.08,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Parking Door Steel Frames",
+        "frame_color": [
+          0.18,
+          0.19,
+          0.18,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.04,
+        "handle_material": "Grammar Stainless Door Handles",
+        "handle_color": [
+          0.72,
+          0.72,
+          0.66,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.8,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Door Canopies",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "lamp_post",
+        "count": 6,
+        "mast_height": 2.6,
+        "mast_radius": 0.04,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.55,
+        "panel_height": 0.12,
+        "panel_depth": 0.18,
+        "material": "Grammar Parking Lamp Posts",
+        "color": [
+          0.16,
+          0.17,
+          0.17,
+          1.0
+        ],
+        "accent_material": "Grammar Parking LED Lamp Heads",
+        "accent_color": [
+          1.0,
+          0.92,
+          0.62,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "concrete_multistorey_parking",
+      "building_values": [
+        "parking",
+        "parking_garage",
+        "car_park"
+      ],
+      "tag_filters": {
+        "amenity": [
+          "parking"
+        ],
+        "parking": [
+          "multi-storey",
+          "multistorey",
+          "garage"
+        ]
+      },
+      "default_levels": 6,
+      "default_floor_height": 2.9,
+      "roof": {
+        "type": "flat",
+        "height": 0.4,
+        "overhang": 0.03,
+        "ridge_alignment": "closest_street",
+        "material": "Grammar Parking Roof Deck",
+        "color": [
+          0.2,
+          0.205,
+          0.2,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": true,
+        "edge_width": 0.32,
+        "edge_height": 0.62,
+        "surface_inset": 0.05,
+        "edge_material": "Grammar Heavy Parking Parapet",
+        "edge_color": [
+          0.46,
+          0.46,
+          0.43,
+          1.0
+        ],
+        "corner_cap_size": 0.5,
+        "tile_rows": 6,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Ribbed Parking Concrete",
+      "wall_color": [
+        0.48,
+        0.48,
+        0.45,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 4.1,
+        "height": 1.35,
+        "sill_height": 0.78,
+        "spacing": 4.35,
+        "min_margin": 0.5,
+        "depth": 0.04,
+        "material": "Grammar Dark Parking Openings",
+        "color": [
+          0.045,
+          0.05,
+          0.05,
+          0.35
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.1,
+        "frame_depth": 0.055,
+        "frame_material": "Grammar Precast Parking Fins",
+        "frame_color": [
+          0.62,
+          0.62,
+          0.58,
+          1.0
+        ],
+        "vertical_mullions": 2,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.18,
+        "sill_thickness": 0.08,
+        "sill_material": "Grammar Concrete Vehicle Barrier",
+        "sill_color": [
+          0.56,
+          0.56,
+          0.52,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.18,
+        "height": 0.12,
+        "every_n_floors": 1,
+        "material": "Grammar Precast Floor Bands",
+        "color": [
+          0.58,
+          0.58,
+          0.54,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 3.7,
+        "depth": 0.12,
+        "slab_height": 0.06,
+        "railing_height": 0.65,
+        "every_n_floors": 1,
+        "material": "Grammar Concrete Parking Rail",
+        "color": [
+          0.5,
+          0.5,
+          0.47,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Parking Cable Rails",
+        "railing_color": [
+          0.26,
+          0.27,
+          0.26,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.035,
+        "railing_bar_depth": 0.035
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 3.2,
+        "height": 2.8,
+        "depth": 0.06,
+        "material": "Grammar Parking Stair Core Glazing",
+        "color": [
+          0.1,
+          0.18,
+          0.2,
+          0.85
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.09,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Parking Stair Core Steel",
+        "frame_color": [
+          0.12,
+          0.13,
+          0.13,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.04,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.82,
+          0.66,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.8,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Door Canopies",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "lamp_post",
+        "count": 8,
+        "mast_height": 2.9,
+        "mast_radius": 0.04,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.55,
+        "panel_height": 0.12,
+        "panel_depth": 0.18,
+        "material": "Grammar Parking Lamp Posts",
+        "color": [
+          0.16,
+          0.17,
+          0.17,
+          1.0
+        ],
+        "accent_material": "Grammar Parking LED Lamp Heads",
+        "accent_color": [
+          1.0,
+          0.92,
+          0.62,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "transit_stop_shelter",
+      "building_values": [
+        "shelter"
+      ],
+      "tag_filters": {
+        "amenity": [
+          "shelter"
+        ],
+        "public_transport": [
+          "platform",
+          "stop_position"
+        ],
+        "shelter_type": [
+          "public_transport"
+        ]
+      },
+      "default_levels": 1,
+      "default_floor_height": 2.55,
+      "roof": {
+        "type": "flat",
+        "height": 0.18,
+        "overhang": 0.55,
+        "ridge_alignment": "closest_street",
+        "material": "Grammar Shelter Flat Roof",
+        "color": [
+          0.08,
+          0.09,
+          0.09,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": true,
+        "edge_width": 0.16,
+        "edge_height": 0.16,
+        "surface_inset": 0.03,
+        "edge_material": "Grammar Shelter Roof Edge",
+        "edge_color": [
+          0.04,
+          0.045,
+          0.045,
+          1.0
+        ],
+        "corner_cap_size": 0.22,
+        "tile_rows": 6,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Shelter Open Side",
+      "wall_color": [
+        0.04,
+        0.045,
+        0.045,
+        0.12
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.85,
+        "height": 1.75,
+        "sill_height": 0.25,
+        "spacing": 2.05,
+        "min_margin": 0.25,
+        "depth": 0.025,
+        "material": "Grammar Shelter Safety Glass",
+        "color": [
+          0.16,
+          0.34,
+          0.42,
+          0.46
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.055,
+        "frame_depth": 0.04,
+        "frame_material": "Grammar Shelter Steel Frames",
+        "frame_color": [
+          0.06,
+          0.065,
+          0.065,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.08,
+        "sill_thickness": 0.04,
+        "sill_material": "Grammar Shelter Lower Rail",
+        "sill_color": [
+          0.08,
+          0.085,
+          0.08,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.08,
+        "height": 0.05,
+        "every_n_floors": 1,
+        "material": "Grammar Shelter Bench Rail",
+        "color": [
+          0.18,
+          0.18,
+          0.16,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": false,
+        "placement": "none",
+        "width": 1.25,
+        "height": 2.25,
+        "depth": 0.08,
+        "material": "Grammar Door",
+        "color": [
+          0.16,
+          0.1,
+          0.06,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.12,
+        "frame_depth": 0.04,
+        "frame_material": "Grammar Door Frames",
+        "frame_color": [
+          0.72,
+          0.68,
+          0.6,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.05,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.82,
+          0.66,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.8,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Door Canopies",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": false,
+        "type": "tv",
+        "count": 1,
+        "mast_height": 1.4,
+        "mast_radius": 0.035,
+        "base_width": 0.45,
+        "base_depth": 0.45,
+        "base_height": 0.18,
+        "panel_width": 0.35,
+        "panel_height": 0.7,
+        "panel_depth": 0.06,
+        "material": "Grammar Antenna Metal",
+        "color": [
+          0.34,
+          0.34,
+          0.33,
+          1.0
+        ],
+        "accent_material": "Grammar Antenna Panels",
+        "accent_color": [
+          0.78,
+          0.78,
+          0.72,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "kontorhaus_brick_office",
+      "building_values": [],
+      "tag_filters": {},
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": null,
+      "wall_material": "Grammar Dark Brick Office",
+      "wall_color": [
+        0.38,
+        0.16,
+        0.11,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.3,
+        "height": 1.75,
+        "sill_height": 0.75,
+        "spacing": 2.2,
+        "min_margin": 0.65,
+        "depth": 0.06,
+        "material": "Grammar Steel Office Windows",
+        "color": [
+          0.11,
+          0.18,
+          0.2,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.09,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Kontorhaus Steel Frames",
+        "frame_color": [
+          0.06,
+          0.07,
+          0.07,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 2,
+        "sill_depth": 0.18,
+        "sill_thickness": 0.06,
+        "sill_material": "Grammar Brick Office Sills",
+        "sill_color": [
+          0.3,
+          0.11,
+          0.08,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.14,
+        "height": 0.08,
+        "every_n_floors": 1,
+        "material": "Grammar Brick Expressionist Bands",
+        "color": [
+          0.28,
+          0.1,
+          0.07,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.2,
+        "height": 3.1,
+        "depth": 0.06,
+        "material": "Grammar Office Entrance Glass",
+        "color": [
+          0.1,
+          0.2,
+          0.25,
+          0.88
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.09,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Office Entrance Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.09,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.04,
+        "handle_material": "Grammar Stainless Door Handles",
+        "handle_color": [
+          0.75,
+          0.74,
+          0.68,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 3.0,
+        "canopy_depth": 1.0,
+        "canopy_thickness": 0.1,
+        "canopy_material": "Grammar Office Entrance Canopy",
+        "canopy_color": [
+          0.18,
+          0.19,
+          0.19,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "broadcast",
+        "count": 1,
+        "mast_height": 4.2,
+        "mast_radius": 0.06,
+        "base_width": 0.8,
+        "base_depth": 0.65,
+        "base_height": 0.28,
+        "panel_width": 0.42,
+        "panel_height": 1.25,
+        "panel_depth": 0.08,
+        "material": "Grammar Communication Mast Steel",
+        "color": [
+          0.28,
+          0.29,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Cellular Antenna Panels",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "apartment_gabled_residential",
+      "building_values": [
+        "apartments"
+      ],
+      "tag_filters": {
+        "building": [
+          "apartments"
+        ],
+        "residential": [
+          "apartments"
+        ],
+        "building:use": [
+          "apartments",
+          "residential"
+        ]
+      },
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": {
+        "type": "gabled",
+        "height": 1.9,
+        "overhang": 0.32,
+        "ridge_alignment": "closest_street",
+        "material": "Grammar Apartment Clay Tile Roof",
+        "color": [
+          0.35,
+          0.085,
+          0.05,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": false,
+        "edge_width": 0.28,
+        "edge_height": 0.35,
+        "surface_inset": 0.08,
+        "edge_material": "Grammar Roof Edge",
+        "edge_color": [
+          0.22,
+          0.22,
+          0.2,
+          1.0
+        ],
+        "corner_cap_size": 0.42,
+        "tile_rows": 8,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 2,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 2,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 1,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Stucco Sandstone",
+      "wall_color": [
+        0.72,
+        0.64,
+        0.5,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.05,
+        "height": 1.85,
+        "sill_height": 0.75,
+        "spacing": 2.25,
+        "min_margin": 0.65,
+        "depth": 0.08,
+        "material": "Grammar Tall Altbau Glass",
+        "color": [
+          0.13,
+          0.21,
+          0.25,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.11,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Painted Altbau Frames",
+        "frame_color": [
+          0.9,
+          0.86,
+          0.76,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.28,
+        "sill_thickness": 0.08,
+        "sill_material": "Grammar Sandstone Window Sills",
+        "sill_color": [
+          0.82,
+          0.76,
+          0.64,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.22,
+        "height": 0.1,
+        "every_n_floors": 1,
+        "material": "Grammar Stucco Cornices",
+        "color": [
+          0.82,
+          0.76,
+          0.64,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 1.7,
+        "depth": 0.55,
+        "slab_height": 0.1,
+        "railing_height": 0.95,
+        "every_n_floors": 2,
+        "material": "Grammar Gruenderzeit Ironwork",
+        "color": [
+          0.035,
+          0.03,
+          0.025,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Ornate Iron Railings",
+        "railing_color": [
+          0.025,
+          0.022,
+          0.02,
+          1.0
+        ],
+        "railing_bar_count": 7,
+        "railing_bar_width": 0.035,
+        "railing_bar_depth": 0.035
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Altbau Timber Door",
+        "color": [
+          0.16,
+          0.075,
+          0.035,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Sandstone Door Portal",
+        "frame_color": [
+          0.82,
+          0.76,
+          0.64,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "tv",
+        "count": 1,
+        "mast_height": 1.25,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "apartment_pyramid_residential",
+      "building_values": [
+        "apartments"
+      ],
+      "tag_filters": {
+        "building": [
+          "apartments"
+        ],
+        "residential": [
+          "apartments"
+        ],
+        "building:use": [
+          "apartments",
+          "residential"
+        ]
+      },
+      "default_levels": null,
+      "default_floor_height": null,
+      "roof": {
+        "type": "pyramid",
+        "height": 1.45,
+        "overhang": 0.28,
+        "ridge_alignment": "longest_axis",
+        "material": "Grammar Apartment Dark Tile Roof",
+        "color": [
+          0.18,
+          0.105,
+          0.075,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": false,
+        "edge_width": 0.28,
+        "edge_height": 0.35,
+        "surface_inset": 0.08,
+        "edge_material": "Grammar Roof Edge",
+        "edge_color": [
+          0.22,
+          0.22,
+          0.2,
+          1.0
+        ],
+        "corner_cap_size": 0.42,
+        "tile_rows": 6,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Contemporary Mineral Render",
+      "wall_color": [
+        0.82,
+        0.82,
+        0.78,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [],
+      "wall_color_variant_mode": "none",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 1.65,
+        "height": 1.9,
+        "sill_height": 0.45,
+        "spacing": 2.85,
+        "min_margin": 0.75,
+        "depth": 0.035,
+        "material": "Grammar Contemporary Triple Glazing",
+        "color": [
+          0.12,
+          0.22,
+          0.26,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.065,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Contemporary Anthracite Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.08,
+          1.0
+        ],
+        "vertical_mullions": 0,
+        "horizontal_mullions": 0,
+        "sill_depth": 0.08,
+        "sill_thickness": 0.04,
+        "sill_material": "Grammar Flush Metal Sills",
+        "sill_color": [
+          0.48,
+          0.5,
+          0.48,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.06,
+        "height": 0.05,
+        "every_n_floors": 3,
+        "material": "Grammar Contemporary Shadow Joints",
+        "color": [
+          0.62,
+          0.62,
+          0.58,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": true,
+        "width": 2.8,
+        "depth": 1.0,
+        "slab_height": 0.14,
+        "railing_height": 1.0,
+        "every_n_floors": 1,
+        "material": "Grammar Glass Balcony Railings",
+        "color": [
+          0.36,
+          0.46,
+          0.48,
+          0.86
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Laminated Glass Rails",
+        "railing_color": [
+          0.38,
+          0.5,
+          0.54,
+          0.78
+        ],
+        "railing_bar_count": 0,
+        "railing_bar_width": 0.03,
+        "railing_bar_depth": 0.03
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 1.25,
+        "height": 2.35,
+        "depth": 0.09,
+        "material": "Grammar Contemporary Entrance Glass",
+        "color": [
+          0.1,
+          0.18,
+          0.2,
+          0.9
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.05,
+        "frame_material": "Grammar Contemporary Anthracite Door Frames",
+        "frame_color": [
+          0.08,
+          0.085,
+          0.08,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.84,
+          0.68,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 1.9,
+        "canopy_depth": 0.7,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Residential Door Canopy",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "radio",
+        "count": 1,
+        "mast_height": 1.1,
+        "mast_radius": 0.025,
+        "base_width": 0.28,
+        "base_depth": 0.28,
+        "base_height": 0.12,
+        "panel_width": 0.45,
+        "panel_height": 0.18,
+        "panel_depth": 0.035,
+        "material": "Grammar Domestic Antenna Metal",
+        "color": [
+          0.32,
+          0.32,
+          0.31,
+          1.0
+        ],
+        "accent_material": "Grammar Domestic Antenna Elements",
+        "accent_color": [
+          0.74,
+          0.74,
+          0.68,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "supermarket",
+      "building_values": [
+        "supermarket"
+      ],
+      "tag_filters": {
+        "shop": [
+          "supermarket",
+          "grocery",
+          "convenience",
+          "discount"
+        ],
+        "amenity": [
+          "marketplace"
+        ],
+        "building": [
+          "supermarket"
+        ]
+      },
+      "default_levels": 1,
+      "default_floor_height": 5.2,
+      "roof": {
+        "type": "flat",
+        "height": 0.75,
+        "overhang": 0.22,
+        "ridge_alignment": "closest_street",
+        "material": "Grammar Supermarket Membrane Roof",
+        "color": [
+          0.18,
+          0.19,
+          0.18,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": true,
+        "edge_width": 0.42,
+        "edge_height": 0.85,
+        "surface_inset": 0.08,
+        "edge_material": "Grammar Supermarket Sign Parapet",
+        "edge_color": [
+          0.78,
+          0.76,
+          0.68,
+          1.0
+        ],
+        "corner_cap_size": 0.58,
+        "tile_rows": 6,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Supermarket Light Cladding",
+      "wall_color": [
+        0.82,
+        0.81,
+        0.76,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.82,
+          0.81,
+          0.76,
+          1.0
+        ],
+        [
+          0.74,
+          0.78,
+          0.76,
+          1.0
+        ],
+        [
+          0.86,
+          0.84,
+          0.78,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "building",
+      "wall_row_colors": [
+        [
+          0.24,
+          0.26,
+          0.25,
+          1.0
+        ],
+        [
+          0.82,
+          0.81,
+          0.76,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 3.4,
+        "height": 2.45,
+        "sill_height": 0.35,
+        "spacing": 4.0,
+        "min_margin": 0.7,
+        "depth": 0.035,
+        "material": "Grammar Supermarket Storefront Glass",
+        "color": [
+          0.12,
+          0.28,
+          0.32,
+          0.72
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.075,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Supermarket Aluminum Frames",
+        "frame_color": [
+          0.12,
+          0.13,
+          0.125,
+          1.0
+        ],
+        "vertical_mullions": 2,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.12,
+        "sill_thickness": 0.05,
+        "sill_material": "Grammar Supermarket Base Sill",
+        "sill_color": [
+          0.32,
+          0.33,
+          0.31,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.12,
+        "height": 0.08,
+        "every_n_floors": 1,
+        "material": "Grammar Supermarket Fascia Band",
+        "color": [
+          0.24,
+          0.25,
+          0.24,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.55,
+        "height": 3.0,
+        "depth": 0.06,
+        "material": "Grammar Automatic Supermarket Doors",
+        "color": [
+          0.1,
+          0.24,
+          0.28,
+          0.78
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.08,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Supermarket Door Frames",
+        "frame_color": [
+          0.1,
+          0.105,
+          0.1,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Shopfront Pull Handles",
+        "handle_color": [
+          0.72,
+          0.72,
+          0.66,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 3.4,
+        "canopy_depth": 0.9,
+        "canopy_thickness": 0.09,
+        "canopy_material": "Grammar Shopfront Awning Edge",
+        "canopy_color": [
+          0.18,
+          0.18,
+          0.16,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": false,
+        "type": "tv",
+        "count": 1,
+        "mast_height": 1.4,
+        "mast_radius": 0.035,
+        "base_width": 0.45,
+        "base_depth": 0.45,
+        "base_height": 0.18,
+        "panel_width": 0.35,
+        "panel_height": 0.7,
+        "panel_depth": 0.06,
+        "material": "Grammar Antenna Metal",
+        "color": [
+          0.34,
+          0.34,
+          0.33,
+          1.0
+        ],
+        "accent_material": "Grammar Antenna Panels",
+        "accent_color": [
+          0.78,
+          0.78,
+          0.72,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "retail_shopfront",
+      "building_values": [
+        "retail",
+        "commercial"
+      ],
+      "tag_filters": {
+        "shop": [
+          "*",
+          "mall",
+          "department_store",
+          "clothes",
+          "bakery",
+          "chemist",
+          "hardware"
+        ],
+        "building": [
+          "retail",
+          "commercial"
+        ],
+        "landuse": [
+          "retail"
+        ]
+      },
+      "default_levels": 2,
+      "default_floor_height": 3.8,
+      "roof": {
+        "type": "flat",
+        "height": 0.55,
+        "overhang": 0.12,
+        "ridge_alignment": "closest_street",
+        "material": "Grammar Retail Service Roof",
+        "color": [
+          0.2,
+          0.205,
+          0.2,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": true,
+        "edge_width": 0.34,
+        "edge_height": 0.55,
+        "surface_inset": 0.07,
+        "edge_material": "Grammar Retail Parapet",
+        "edge_color": [
+          0.34,
+          0.34,
+          0.32,
+          1.0
+        ],
+        "corner_cap_size": 0.5,
+        "tile_rows": 6,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Retail Mixed Cladding",
+      "wall_color": [
+        0.68,
+        0.67,
+        0.62,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.68,
+          0.67,
+          0.62,
+          1.0
+        ],
+        [
+          0.56,
+          0.6,
+          0.58,
+          1.0
+        ],
+        [
+          0.74,
+          0.7,
+          0.62,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "facade",
+      "wall_row_colors": [
+        [
+          0.18,
+          0.18,
+          0.17,
+          1.0
+        ],
+        [
+          0.7,
+          0.69,
+          0.64,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 2.5,
+        "height": 2.25,
+        "sill_height": 0.25,
+        "spacing": 3.1,
+        "min_margin": 0.55,
+        "depth": 0.04,
+        "material": "Grammar Retail Display Glass",
+        "color": [
+          0.12,
+          0.24,
+          0.29,
+          0.76
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.075,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Retail Mullions",
+        "frame_color": [
+          0.11,
+          0.11,
+          0.105,
+          1.0
+        ],
+        "vertical_mullions": 1,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.1,
+        "sill_thickness": 0.045,
+        "sill_material": "Grammar Retail Stone Base",
+        "sill_color": [
+          0.46,
+          0.45,
+          0.42,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.14,
+        "height": 0.07,
+        "every_n_floors": 1,
+        "material": "Grammar Retail Sign Band",
+        "color": [
+          0.28,
+          0.28,
+          0.26,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 2.55,
+        "height": 3.0,
+        "depth": 0.06,
+        "material": "Grammar Shopfront Entrance Glass",
+        "color": [
+          0.1,
+          0.2,
+          0.24,
+          0.9
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.08,
+        "frame_depth": 0.045,
+        "frame_material": "Grammar Shopfront Metal Frames",
+        "frame_color": [
+          0.08,
+          0.08,
+          0.075,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.045,
+        "handle_material": "Grammar Shopfront Pull Handles",
+        "handle_color": [
+          0.72,
+          0.72,
+          0.66,
+          1.0
+        ],
+        "canopy_enabled": true,
+        "canopy_width": 3.4,
+        "canopy_depth": 0.9,
+        "canopy_thickness": 0.09,
+        "canopy_material": "Grammar Shopfront Awning Edge",
+        "canopy_color": [
+          0.18,
+          0.18,
+          0.16,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": false,
+        "type": "tv",
+        "count": 1,
+        "mast_height": 1.4,
+        "mast_radius": 0.035,
+        "base_width": 0.45,
+        "base_depth": 0.45,
+        "base_height": 0.18,
+        "panel_width": 0.35,
+        "panel_height": 0.7,
+        "panel_depth": 0.06,
+        "material": "Grammar Antenna Metal",
+        "color": [
+          0.34,
+          0.34,
+          0.33,
+          1.0
+        ],
+        "accent_material": "Grammar Antenna Panels",
+        "accent_color": [
+          0.78,
+          0.78,
+          0.72,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "industrial_warehouse",
+      "building_values": [
+        "industrial",
+        "warehouse",
+        "factory",
+        "manufacture"
+      ],
+      "tag_filters": {
+        "building": [
+          "industrial",
+          "warehouse",
+          "factory",
+          "manufacture"
+        ],
+        "industrial": [
+          "warehouse",
+          "factory",
+          "logistics",
+          "manufacturing"
+        ],
+        "landuse": [
+          "industrial"
+        ]
+      },
+      "default_levels": 2,
+      "default_floor_height": 4.8,
+      "roof": {
+        "type": "flat",
+        "height": 0.85,
+        "overhang": 0.12,
+        "ridge_alignment": "closest_street",
+        "material": "Grammar Industrial Membrane Roof",
+        "color": [
+          0.19,
+          0.2,
+          0.195,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": true,
+        "edge_width": 0.3,
+        "edge_height": 0.5,
+        "surface_inset": 0.06,
+        "edge_material": "Grammar Industrial Roof Coping",
+        "edge_color": [
+          0.34,
+          0.35,
+          0.33,
+          1.0
+        ],
+        "corner_cap_size": 0.48,
+        "tile_rows": 6,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Industrial Metal Panels",
+      "wall_color": [
+        0.54,
+        0.56,
+        0.54,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.54,
+          0.56,
+          0.54,
+          1.0
+        ],
+        [
+          0.46,
+          0.49,
+          0.5,
+          1.0
+        ],
+        [
+          0.62,
+          0.62,
+          0.58,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "building",
+      "wall_row_colors": [],
+      "wall_row_color_mode": "cycle",
+      "window": {
+        "width": 2.0,
+        "height": 1.0,
+        "sill_height": 1.8,
+        "spacing": 4.0,
+        "min_margin": 1.25,
+        "depth": 0.04,
+        "material": "Grammar Industrial Glass",
+        "color": [
+          0.18,
+          0.25,
+          0.28,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.08,
+        "frame_depth": 0.035,
+        "frame_material": "Grammar Industrial Steel Frames",
+        "frame_color": [
+          0.12,
+          0.13,
+          0.13,
+          1.0
+        ],
+        "vertical_mullions": 2,
+        "horizontal_mullions": 1,
+        "sill_depth": 0.08,
+        "sill_thickness": 0.04,
+        "sill_material": "Grammar Concrete Drip Sills",
+        "sill_color": [
+          0.42,
+          0.43,
+          0.42,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.06,
+        "height": 0.05,
+        "every_n_floors": 2,
+        "material": "Grammar Industrial Panel Seams",
+        "color": [
+          0.42,
+          0.43,
+          0.42,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Utility Railings",
+        "railing_color": [
+          0.18,
+          0.18,
+          0.17,
+          1.0
+        ],
+        "railing_bar_count": 3,
+        "railing_bar_width": 0.05,
+        "railing_bar_depth": 0.05
+      },
+      "door": {
+        "enabled": true,
+        "placement": "first_facade",
+        "width": 3.6,
+        "height": 4.0,
+        "depth": 0.08,
+        "material": "Grammar Sectional Loading Bay Door",
+        "color": [
+          0.22,
+          0.24,
+          0.24,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.12,
+        "frame_depth": 0.04,
+        "frame_material": "Grammar Industrial Door Frames",
+        "frame_color": [
+          0.12,
+          0.13,
+          0.13,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.05,
+        "handle_material": "Grammar Door Handles",
+        "handle_color": [
+          0.82,
+          0.66,
+          0.32,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.8,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Door Canopies",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "radio",
+        "count": 1,
+        "mast_height": 2.0,
+        "mast_radius": 0.06,
+        "base_width": 0.8,
+        "base_depth": 0.65,
+        "base_height": 0.28,
+        "panel_width": 0.42,
+        "panel_height": 1.25,
+        "panel_depth": 0.08,
+        "material": "Grammar Communication Mast Steel",
+        "color": [
+          0.28,
+          0.29,
+          0.29,
+          1.0
+        ],
+        "accent_material": "Grammar Cellular Antenna Panels",
+        "accent_color": [
+          0.82,
+          0.82,
+          0.76,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "gothic_church",
+      "building_values": [
+        "church",
+        "chapel",
+        "religious"
+      ],
+      "tag_filters": {
+        "building": [
+          "church",
+          "chapel",
+          "religious"
+        ],
+        "amenity": [
+          "place_of_worship"
+        ],
+        "religion": [
+          "christian"
+        ],
+        "denomination": [
+          "catholic",
+          "protestant",
+          "evangelical",
+          "lutheran",
+          "reformed",
+          "orthodox"
+        ]
+      },
+      "default_levels": 3,
+      "default_floor_height": 4.8,
+      "roof": {
+        "type": "gabled",
+        "height": 3.2,
+        "overhang": 0.28,
+        "ridge_alignment": "longest_axis",
+        "material": "Grammar Church Slate Roof",
+        "color": [
+          0.12,
+          0.12,
+          0.13,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": false,
+        "edge_width": 0.28,
+        "edge_height": 0.35,
+        "surface_inset": 0.08,
+        "edge_material": "Grammar Roof Edge",
+        "edge_color": [
+          0.22,
+          0.22,
+          0.2,
+          1.0
+        ],
+        "corner_cap_size": 0.42,
+        "tile_rows": 10,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Church Weathered Stone",
+      "wall_color": [
+        0.56,
+        0.53,
+        0.47,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.56,
+          0.53,
+          0.47,
+          1.0
+        ],
+        [
+          0.62,
+          0.59,
+          0.52,
+          1.0
+        ],
+        [
+          0.48,
+          0.47,
+          0.43,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "building",
+      "wall_row_colors": [
+        [
+          0.42,
+          0.4,
+          0.36,
+          1.0
+        ],
+        [
+          0.58,
+          0.55,
+          0.49,
+          1.0
+        ],
+        [
+          0.52,
+          0.5,
+          0.45,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 1.1,
+        "height": 3.15,
+        "sill_height": 0.55,
+        "spacing": 2.55,
+        "min_margin": 0.95,
+        "depth": 0.08,
+        "material": "Grammar Church Stained Glass",
+        "color": [
+          0.12,
+          0.18,
+          0.31,
+          0.9
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.13,
+        "frame_depth": 0.06,
+        "frame_material": "Grammar Church Stone Tracery",
+        "frame_color": [
+          0.72,
+          0.69,
+          0.62,
+          1.0
+        ],
+        "vertical_mullions": 2,
+        "horizontal_mullions": 3,
+        "sill_depth": 0.24,
+        "sill_thickness": 0.1,
+        "sill_material": "Grammar Church Stone Sills",
+        "sill_color": [
+          0.7,
+          0.67,
+          0.6,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.22,
+        "height": 0.11,
+        "every_n_floors": 1,
+        "material": "Grammar Church String Courses",
+        "color": [
+          0.68,
+          0.65,
+          0.58,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "street_facing",
+        "width": 2.45,
+        "height": 3.6,
+        "depth": 0.12,
+        "material": "Grammar Church Heavy Timber Door",
+        "color": [
+          0.12,
+          0.065,
+          0.035,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.24,
+        "frame_depth": 0.09,
+        "frame_material": "Grammar Church Portal Stone",
+        "frame_color": [
+          0.72,
+          0.68,
+          0.58,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.065,
+        "handle_material": "Grammar Wrought Iron Door Hardware",
+        "handle_color": [
+          0.045,
+          0.04,
+          0.035,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.8,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Door Canopies",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "lightning_rod",
+        "count": 1,
+        "mast_height": 2.6,
+        "mast_radius": 0.018,
+        "base_width": 0.18,
+        "base_depth": 0.18,
+        "base_height": 0.08,
+        "panel_width": 0.12,
+        "panel_height": 0.35,
+        "panel_depth": 0.02,
+        "material": "Grammar Lightning Rod Steel",
+        "color": [
+          0.42,
+          0.42,
+          0.39,
+          1.0
+        ],
+        "accent_material": "Grammar Lightning Rod Tip",
+        "accent_color": [
+          0.76,
+          0.74,
+          0.66,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "cathedral_stone",
+      "building_values": [
+        "cathedral"
+      ],
+      "tag_filters": {
+        "building": [
+          "cathedral"
+        ],
+        "amenity": [
+          "place_of_worship"
+        ],
+        "religion": [
+          "christian"
+        ],
+        "historic": [
+          "church",
+          "cathedral",
+          "yes",
+          "*"
+        ]
+      },
+      "default_levels": 5,
+      "default_floor_height": 5.2,
+      "roof": {
+        "type": "gabled",
+        "height": 4.4,
+        "overhang": 0.35,
+        "ridge_alignment": "longest_axis",
+        "material": "Grammar Cathedral Dark Slate Roof",
+        "color": [
+          0.075,
+          0.08,
+          0.09,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "edge_enabled": false,
+        "edge_width": 0.28,
+        "edge_height": 0.35,
+        "surface_inset": 0.08,
+        "edge_material": "Grammar Roof Edge",
+        "edge_color": [
+          0.22,
+          0.22,
+          0.2,
+          1.0
+        ],
+        "corner_cap_size": 0.42,
+        "tile_rows": 14,
+        "tile_depth": 0.035,
+        "tile_spacing": 0.55,
+        "tile_material": "Grammar Roof Tile Bands",
+        "tile_color": [
+          0.28,
+          0.07,
+          0.045,
+          1.0
+        ],
+        "dormer_count": 0,
+        "dormer_width": 1.35,
+        "dormer_depth": 0.9,
+        "dormer_height": 0.9,
+        "dormer_material": "Grammar Dormer Cladding",
+        "dormer_color": [
+          0.62,
+          0.58,
+          0.5,
+          1.0
+        ],
+        "roof_window_count": 0,
+        "roof_window_width": 0.75,
+        "roof_window_height": 1.05,
+        "roof_window_material": "Grammar Roof Window Glass",
+        "roof_window_color": [
+          0.08,
+          0.16,
+          0.2,
+          0.86
+        ],
+        "chimney_count": 0,
+        "chimney_width": 0.45,
+        "chimney_depth": 0.38,
+        "chimney_height": 1.15,
+        "chimney_material": "Grammar Brick Chimney",
+        "chimney_color": [
+          0.42,
+          0.16,
+          0.1,
+          1.0
+        ]
+      },
+      "wall_material": "Grammar Cathedral Carved Stone",
+      "wall_color": [
+        0.61,
+        0.59,
+        0.54,
+        1.0
+      ],
+      "wall_texture_path": null,
+      "wall_texture_scale": 1.0,
+      "wall_color_variants": [
+        [
+          0.61,
+          0.59,
+          0.54,
+          1.0
+        ],
+        [
+          0.52,
+          0.51,
+          0.47,
+          1.0
+        ],
+        [
+          0.68,
+          0.65,
+          0.58,
+          1.0
+        ]
+      ],
+      "wall_color_variant_mode": "facade",
+      "wall_row_colors": [
+        [
+          0.45,
+          0.43,
+          0.39,
+          1.0
+        ],
+        [
+          0.62,
+          0.6,
+          0.55,
+          1.0
+        ],
+        [
+          0.56,
+          0.54,
+          0.5,
+          1.0
+        ]
+      ],
+      "wall_row_color_mode": "ground_accent",
+      "window": {
+        "width": 1.35,
+        "height": 4.4,
+        "sill_height": 0.6,
+        "spacing": 2.9,
+        "min_margin": 1.05,
+        "depth": 0.09,
+        "material": "Grammar Cathedral Stained Glass",
+        "color": [
+          0.1,
+          0.16,
+          0.34,
+          0.92
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.16,
+        "frame_depth": 0.075,
+        "frame_material": "Grammar Cathedral Stone Tracery",
+        "frame_color": [
+          0.76,
+          0.73,
+          0.66,
+          1.0
+        ],
+        "vertical_mullions": 3,
+        "horizontal_mullions": 4,
+        "sill_depth": 0.3,
+        "sill_thickness": 0.12,
+        "sill_material": "Grammar Cathedral Deep Stone Sills",
+        "sill_color": [
+          0.72,
+          0.69,
+          0.62,
+          1.0
+        ]
+      },
+      "ledge": {
+        "enabled": true,
+        "depth": 0.28,
+        "height": 0.14,
+        "every_n_floors": 1,
+        "material": "Grammar Cathedral String Courses",
+        "color": [
+          0.72,
+          0.69,
+          0.62,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0
+      },
+      "balcony": {
+        "enabled": false,
+        "width": 1.9,
+        "depth": 0.75,
+        "slab_height": 0.12,
+        "railing_height": 0.9,
+        "every_n_floors": 2,
+        "material": "Grammar Balconies",
+        "color": [
+          0.58,
+          0.58,
+          0.55,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "railing_material": "Grammar Balcony Railings",
+        "railing_color": [
+          0.16,
+          0.16,
+          0.15,
+          1.0
+        ],
+        "railing_bar_count": 5,
+        "railing_bar_width": 0.04,
+        "railing_bar_depth": 0.04
+      },
+      "door": {
+        "enabled": true,
+        "placement": "street_facing",
+        "width": 3.2,
+        "height": 4.35,
+        "depth": 0.14,
+        "material": "Grammar Cathedral Main Portal Doors",
+        "color": [
+          0.1,
+          0.052,
+          0.028,
+          1.0
+        ],
+        "texture_path": null,
+        "texture_scale": 1.0,
+        "frame_width": 0.32,
+        "frame_depth": 0.12,
+        "frame_material": "Grammar Cathedral Sculpted Portal",
+        "frame_color": [
+          0.76,
+          0.72,
+          0.62,
+          1.0
+        ],
+        "handle_enabled": true,
+        "handle_radius": 0.075,
+        "handle_material": "Grammar Cathedral Iron Hardware",
+        "handle_color": [
+          0.04,
+          0.035,
+          0.03,
+          1.0
+        ],
+        "canopy_enabled": false,
+        "canopy_width": 1.8,
+        "canopy_depth": 0.75,
+        "canopy_thickness": 0.08,
+        "canopy_material": "Grammar Door Canopies",
+        "canopy_color": [
+          0.36,
+          0.36,
+          0.34,
+          1.0
+        ]
+      },
+      "antenna": {
+        "enabled": true,
+        "type": "lightning_rod",
+        "count": 3,
+        "mast_height": 3.4,
+        "mast_radius": 0.018,
+        "base_width": 0.18,
+        "base_depth": 0.18,
+        "base_height": 0.08,
+        "panel_width": 0.12,
+        "panel_height": 0.35,
+        "panel_depth": 0.02,
+        "material": "Grammar Lightning Rod Steel",
+        "color": [
+          0.42,
+          0.42,
+          0.39,
+          1.0
+        ],
+        "accent_material": "Grammar Lightning Rod Tip",
+        "accent_color": [
+          0.76,
+          0.74,
+          0.66,
+          1.0
+        ]
+      }
+    }
+  ],
+  "roof": {
+    "type": "flat",
+    "height": 0.7,
+    "overhang": 0.12,
+    "ridge_alignment": "closest_street",
+    "material": "Grammar German Mixed Roof",
+    "color": [
+      0.2,
+      0.2,
+      0.18,
+      1.0
+    ],
+    "texture_path": null,
+    "texture_scale": 1.0,
+    "edge_enabled": true,
+    "edge_width": 0.32,
+    "edge_height": 0.38,
+    "surface_inset": 0.08,
+    "edge_material": "Grammar German Parapet Edge",
+    "edge_color": [
+      0.24,
+      0.24,
+      0.22,
+      1.0
+    ],
+    "corner_cap_size": 0.48,
+    "tile_rows": 6,
+    "tile_depth": 0.035,
+    "tile_spacing": 0.55,
+    "tile_material": "Grammar Roof Tile Bands",
+    "tile_color": [
+      0.28,
+      0.07,
+      0.045,
+      1.0
+    ],
+    "dormer_count": 0,
+    "dormer_width": 1.35,
+    "dormer_depth": 0.9,
+    "dormer_height": 0.9,
+    "dormer_material": "Grammar Dormer Cladding",
+    "dormer_color": [
+      0.62,
+      0.58,
+      0.5,
+      1.0
+    ],
+    "roof_window_count": 0,
+    "roof_window_width": 0.75,
+    "roof_window_height": 1.05,
+    "roof_window_material": "Grammar Roof Window Glass",
+    "roof_window_color": [
+      0.08,
+      0.16,
+      0.2,
+      0.86
+    ],
+    "chimney_count": 0,
+    "chimney_width": 0.45,
+    "chimney_depth": 0.38,
+    "chimney_height": 1.15,
+    "chimney_material": "Grammar Brick Chimney",
+    "chimney_color": [
+      0.42,
+      0.16,
+      0.1,
+      1.0
+    ]
+  },
+  "roof_street_alignment_search_radius": 80.0
+}
