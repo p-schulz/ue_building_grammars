@@ -9,10 +9,13 @@
 // generators, which each build their own FGrammarRoofFrame using the same resolved direction.
 namespace GrammarRoofDirection
 {
-	// Explicit roof:orientation/roof:direction tag first; else (only for gabled roofs, and only
-	// when RidgeAlignment is street-based) an explicit ridge-direction tag; else the footprint's
-	// longest AABB axis.
-	FVector2D GabledRidgeDirection(const TArray<FVector>& Base, const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags);
+	// Explicit roof:orientation/roof:direction tag first; else (only when RidgeAlignment is
+	// street-based) an explicit ridge-direction tag -- either a genuine OSM roof:ridge:direction tag
+	// or the synthetic grammar:roof:ridge_direction tag FGrammarStreetAlignment injects for
+	// EGrammarRidgeAlignment::ClosestStreet (see Osm/StreetRidgeAlignment.h); else the footprint's
+	// own longest edge (FGrammarGeometry2D::LongestAxisDirection). Used by both gabled and hipped
+	// roofs (GrammarRoof.cpp) and their detail placements (GrammarRoofDetails.cpp).
+	FVector2D RidgeDirection(const TArray<FVector>& Base, const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags);
 
 	// (0,0) if no usable roof:orientation/roof:direction tag is present.
 	FVector2D RoofOrientationDirection(const TArray<FVector>& Base, const TMap<FString, FString>& Tags);

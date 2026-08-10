@@ -34,7 +34,10 @@ struct BUILDINGGRAMMARCORE_API FRoofStyleConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Roof")
 	double Overhang = 0.25;
 
-	// Only consulted for gabled roofs when no explicit OSM roof:orientation tag is present.
+	// Consulted for gabled and hipped roofs (GrammarRoofDirection::RidgeDirection) when no explicit
+	// OSM roof:orientation/roof:direction tag is present. ClosestStreet is resolved geometrically by
+	// FGrammarStreetAlignment during OSM loading (address-tag match preferred, else nearest street
+	// within FBuildingGrammarConfig::RoofStreetAlignmentSearchRadius) -- see Osm/StreetRidgeAlignment.h.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Roof")
 	EGrammarRidgeAlignment RidgeAlignment = EGrammarRidgeAlignment::ClosestStreet;
 

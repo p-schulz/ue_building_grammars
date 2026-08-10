@@ -14,6 +14,16 @@
 #include "BuildingInstancePoolActor.h"
 #include "BuildingActorPersistence.h"
 #include "Presets/GrammarBuildingPresets.h"
+#include "EngineUtils.h"
+#include "Selection.h"
+#include "BuildingPickEdMode.h"
+#include "BuildingPickPanelData.h"
+#include "EditorModeRegistry.h"
+#include "EditorModeManager.h"
+#include "PropertyEditorModule.h"
+#include "IStructureDetailsView.h"
+#include "UObject/StructOnScope.h"
+#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "BuildingGrammarEditor"
 
@@ -24,11 +34,32 @@
 // ready rather than racing module load order.
 void FBuildingGrammarEditorModule::StartupModule()
 {
+	// bVisible=false keeps this out of the Modes toolbar entirely -- it's only ever activated via the
+	// "Pick Building" Tools-menu entry below (OnPickBuildingClicked).
+	FEditorModeRegistry::Get().RegisterMode<FBuildingPickEdMode>(FBuildingPickEdMode::ModeID, FText(), FSlateIcon(), /*bVisible=*/false);
+	FBuildingPickEdMode::OnBuildingPicked.AddRaw(this, &FBuildingGrammarEditorModule::HandleBuildingPicked);
+
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FBuildingGrammarEditorModule::RegisterMenus));
 }
 
 void FBuildingGrammarEditorModule::ShutdownModule()
 {
+	FBuildingPickEdMode::OnBuildingPicked.RemoveAll(this);
+	// UnrealEd may already be gone by the time a plugin module shuts down (no strict ordering
+	// guarantee) -- guard rather than risk calling into a torn-down singleton.
+	if (FModuleManager::Get().IsModuleLoaded(TEXT("UnrealEd")))
+	{
+		FEditorModeRegistry::Get().UnregisterMode(FBuildingPickEdMode::ModeID);
+	}
+
+	if (PickPanelWindow.IsValid())
+	{
+		PickPanelWindow->RequestDestroyWindow();
+		PickPanelWindow.Reset();
+	}
+	PickPanelDetailsView.Reset();
+	PickPanelStruct.Reset();
+
 	UToolMenus::UnregisterOwner(this);
 }
 
@@ -56,6 +87,22 @@ void FBuildingGrammarEditorModule::RegisterMenus()
 		LOCTEXT("GenerateFromOsmTooltip", "Import an .osm file and generate procedural buildings into the current level"),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnGenerateFromOsmClicked)));
+	Section.AddMenuEntry(
+		"BakeToStaticMesh",
+		LOCTEXT("BakeToStaticMesh", "Bake Generated Buildings to Static Meshes..."),
+		LOCTEXT("BakeToStaticMeshTooltip", "Convert each generated building cell (selected pool actors, or every one in the level if none are selected) into one saved UStaticMesh asset, deleting the original pool actor and replacing it with a plain static mesh actor referencing the baked asset"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked)));
+	Section.AddMenuEntry(
+		"PickBuilding",
+		LOCTEXT("PickBuilding", "Pick Building"),
+		LOCTEXT("PickBuildingTooltip", "Toggle a viewport tool for clicking an individual generated building (out of the many merged into a pool actor's shared instances/hero mesh) to view/edit a per-building tag or facade-style override. Click this again, or click empty space, to stop picking."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnPickBuildingClicked),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([]() { return GLevelEditorModeTools().IsModeActive(FBuildingPickEdMode::ModeID); })),
+		EUserInterfaceActionType::ToggleButton);
 }
 
 // Loads a config using the Blender add-on's own snake_case JSON schema (FGrammarConfigJson, not
@@ -184,6 +231,15 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 			"The editor will briefly reload the level every so often during generation. Generated buildings won't be visible in this level until World Partition streams that cell back in.")) == EAppReturnType::Yes;
 	}
 
+	// Not WP-gated -- unlike bSaveAndUnloadPerCell, this has nothing to do with World Partition; it
+	// just reduces per-cell memory/actor count by baking (and deleting the pool actor in favor of a
+	// plain static mesh actor) immediately instead of leaving it as HISM buckets + a hero mesh
+	// component. Can also be applied afterward via "Bake Generated Buildings to Static Meshes..."
+	// independent of this choice.
+	const bool bBakeToStaticMeshPerCell = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("AskBakeToStaticMesh",
+		"Bake each cell to a static mesh asset as it's generated?\n\n"
+		"Reduces memory/actor count during generation: each cell's pool actor is deleted and replaced with a plain static mesh actor referencing the baked asset. Baked cells lose per-instance HISM culling/streaming and can't be edited as individual instances afterward -- use \"Bake Generated Buildings to Static Meshes...\" later instead if you want to inspect/edit generated buildings first.")) == EAppReturnType::Yes;
+
 	TArray<ABuildingInstancePoolActor*> Pools;
 	FScopedSlowTask SlowTask(100.0f, LOCTEXT("GeneratingBuildings", "Generating buildings..."));
 	SlowTask.MakeDialog(/*bShowCancelButton=*/true);
@@ -192,7 +248,7 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 	const int32 GeneratedCount = UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 		World, OsmFilePath, CenterLatitude, CenterLongitude, Config, Pools,
 		/*CellSize=*/10000.0, /*RuntimeGridName=*/NAME_None,
-		bSaveAndUnloadPerCell, /*CellsPerLevelReload=*/25,
+		bSaveAndUnloadPerCell, /*CellsPerLevelReload=*/25, bBakeToStaticMeshPerCell,
 		[&SlowTask, &bCancelled](int32 CellsCompleted, int32 TotalCells) -> bool
 		{
 			const float WorkThisCell = TotalCells > 0 ? 100.0f / static_cast<float>(TotalCells) : 100.0f;
@@ -219,6 +275,173 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 			FText::FromString(FPaths::GetCleanFilename(OsmFilePath)));
 
 	FMessageDialog::Open(EAppMsgType::Ok, Message);
+}
+
+// Post-process counterpart to OnGenerateFromOsmClicked's bBakeToStaticMeshPerCell option -- bakes
+// whatever ABuildingInstancePoolActors are already in the level (or just the current selection, if
+// any) whenever the user is ready, decoupled from generation itself.
+void FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked()
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<ABuildingInstancePoolActor*> Targets;
+	if (USelection* Selection = GEditor->GetSelectedActors())
+	{
+		for (FSelectionIterator It(*Selection); It; ++It)
+		{
+			if (ABuildingInstancePoolActor* Pool = Cast<ABuildingInstancePoolActor>(*It))
+			{
+				Targets.Add(Pool);
+			}
+		}
+	}
+	if (Targets.IsEmpty())
+	{
+		for (TActorIterator<ABuildingInstancePoolActor> It(World); It; ++It)
+		{
+			Targets.Add(*It);
+		}
+	}
+
+	if (Targets.IsEmpty())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoPoolsToBake", "No generated building pool actors found in this level (or in the current selection)."));
+		return;
+	}
+
+	FScopedSlowTask SlowTask(static_cast<float>(Targets.Num()), LOCTEXT("BakingBuildings", "Baking buildings to static meshes..."));
+	SlowTask.MakeDialog(/*bShowCancelButton=*/true);
+
+	int32 BakedCount = 0;
+	int32 SkippedCount = 0;
+	for (ABuildingInstancePoolActor* Pool : Targets)
+	{
+		if (SlowTask.ShouldCancel())
+		{
+			break;
+		}
+		SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("BakingCell", "Baking '{0}'..."), FText::FromString(Pool->GetActorLabel())));
+
+		if (ABuildingInstancePoolActor::BakeAndReplace(Pool, Pool->MakeDefaultBakedAssetPath()))
+		{
+			++BakedCount;
+		}
+		else
+		{
+			++SkippedCount;
+		}
+	}
+
+	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
+		LOCTEXT("BakeComplete", "Baked {0} cell(s) to static mesh assets under /Game/GeneratedBuildings/.{1}"),
+		FText::AsNumber(BakedCount),
+		SkippedCount > 0
+			? FText::Format(LOCTEXT("BakeSkippedSuffix", " {0} had no geometry to bake and were left unchanged."), FText::AsNumber(SkippedCount))
+			: FText::GetEmpty()));
+}
+
+void FBuildingGrammarEditorModule::OnPickBuildingClicked()
+{
+	GLevelEditorModeTools().ActivateMode(FBuildingPickEdMode::ModeID, /*bToggle=*/true);
+}
+
+// Shows (creating on first use) a floating details panel over an FBuildingPickPanelData for the
+// just-picked building, pre-filled with its existing override (if any) -- see
+// BuildingPickPanelData.h. Reused across picks rather than recreated each time: avoids
+// FGlobalTabmanager registration complexity for what's a single, occasional-use tool. If the user
+// previously closed the window via its native close button, PickPanelWindow/PickPanelDetailsView
+// were reset to null (see the SetOnWindowClosed binding below) and are transparently recreated here.
+void FBuildingGrammarEditorModule::HandleBuildingPicked(ABuildingInstancePoolActor* Pool, const FString& SourceName)
+{
+	if (!Pool)
+	{
+		return;
+	}
+
+	PickedPool = Pool;
+
+	FBuildingPickPanelData PanelData;
+	PanelData.SourceName = SourceName;
+	for (const FGrammarBuildingVolume& Volume : Pool->SourceVolumes)
+	{
+		if (Volume.SourceName == SourceName)
+		{
+			PanelData.OriginalTags = Volume.VolumeTags;
+			break;
+		}
+	}
+	if (const FBuildingCustomizationOverride* Existing = Pool->BuildingOverrides.Find(SourceName))
+	{
+		PanelData.Override = *Existing;
+	}
+
+	PickPanelStruct = MakeShared<FStructOnScope>(FBuildingPickPanelData::StaticStruct());
+	*reinterpret_cast<FBuildingPickPanelData*>(PickPanelStruct->GetStructMemory()) = PanelData;
+
+	if (!PickPanelDetailsView.IsValid())
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bShowOptions = false;
+		const FStructureDetailsViewArgs StructureViewArgs;
+		PickPanelDetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, PickPanelStruct, LOCTEXT("PickPanelTitle", "Building Customization"));
+		// No separate "Apply" button -- edits take effect on the picked building as soon as a field
+		// commits (see HandlePickPanelPropertyChanged).
+		PickPanelDetailsView->GetOnFinishedChangingPropertiesDelegate().AddRaw(this, &FBuildingGrammarEditorModule::HandlePickPanelPropertyChanged);
+	}
+	else
+	{
+		PickPanelDetailsView->SetStructureData(PickPanelStruct);
+	}
+
+	if (!PickPanelWindow.IsValid())
+	{
+		PickPanelWindow = SNew(SWindow)
+			.Title(LOCTEXT("PickPanelWindowTitle", "Building Customization"))
+			.ClientSize(FVector2D(380.0f, 260.0f))
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			[
+				PickPanelDetailsView->GetWidget().ToSharedRef()
+			];
+		PickPanelWindow->SetOnWindowClosed(FOnWindowClosed::CreateLambda([this](const TSharedRef<SWindow>&)
+		{
+			// The details view's widget lived inside the now-destroyed native window -- drop both so
+			// the next pick recreates them from scratch instead of reusing a widget with nowhere to go.
+			PickPanelDetailsView.Reset();
+			PickPanelWindow.Reset();
+		}));
+		FSlateApplication::Get().AddWindow(PickPanelWindow.ToSharedRef());
+	}
+	else
+	{
+		PickPanelWindow->ShowWindow();
+		PickPanelWindow->BringToFront();
+	}
+}
+
+void FBuildingGrammarEditorModule::HandlePickPanelPropertyChanged(const FPropertyChangedEvent& ChangedEvent)
+{
+	if (!PickPanelStruct.IsValid() || !PickedPool.IsValid())
+	{
+		return;
+	}
+
+	const FBuildingPickPanelData* PanelData = reinterpret_cast<const FBuildingPickPanelData*>(PickPanelStruct->GetStructMemory());
+	if (!PanelData)
+	{
+		return;
+	}
+
+	ABuildingInstancePoolActor* Pool = PickedPool.Get();
+	Pool->SetBuildingOverride(PanelData->SourceName, PanelData->Override);
+	Pool->RegenerateFromSource();
 }
 
 #undef LOCTEXT_NAMESPACE

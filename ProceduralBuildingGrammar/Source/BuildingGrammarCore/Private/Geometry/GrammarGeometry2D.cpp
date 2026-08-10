@@ -147,13 +147,34 @@ FBox2D FGrammarGeometry2D::Bounds(const TArray<FVector2D>& Points)
 
 FVector2D FGrammarGeometry2D::LongestAxisDirection(const TArray<FVector2D>& Points)
 {
-	const FBox2D Box = Bounds(Points);
-	const FVector2D Extent = Box.GetExtent();
-	if (Extent.X >= Extent.Y)
+	// The direction of Points' own longest boundary edge (treated as a closed ring -- same convention
+	// as GetSegments: (P0,P1), (P1,P2), ..., (Pn-1,P0)), NOT the wider axis of the world-axis-aligned
+	// bounding box. An earlier version of this function compared Box.GetExtent().X/Y and snapped to
+	// world (1,0)/(0,1) -- correct only for footprints already aligned to North/East, and silently
+	// rotating every gabled/hipped roof's ridge (plus every roof-tile/dormer/chimney placement that
+	// shares this function -- see GrammarRoofDetails.cpp) to world coordinates for any footprint
+	// rotated relative to them, regardless of the building's own shape.
+	if (Points.Num() < 2)
 	{
 		return FVector2D(1.0, 0.0);
 	}
-	return FVector2D(0.0, 1.0);
+
+	double BestLengthSquared = -1.0;
+	FVector2D BestEdge(1.0, 0.0);
+	const int32 Count = Points.Num();
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const FVector2D Edge = Points[(Index + 1) % Count] - Points[Index];
+		const double LengthSquared = Edge.SizeSquared();
+		if (LengthSquared > BestLengthSquared)
+		{
+			BestLengthSquared = LengthSquared;
+			BestEdge = Edge;
+		}
+	}
+
+	const FVector2D Normalized = Normalize2D(BestEdge);
+	return Normalized.IsNearlyZero() ? FVector2D(1.0, 0.0) : Normalized;
 }
 
 double FGrammarGeometry2D::PointToSegmentDistanceSquared(const FVector2D& P, const FVector2D& A, const FVector2D& B)

@@ -46,7 +46,7 @@ namespace
 	FGrammarMeshSpec GabledRoofMesh(const FString& SourceName, const TArray<FVector2D>& Footprint, double Height, const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags)
 	{
 		TArray<FVector> Base = FGrammarRoofFrameMath::RoofBaseVertices(Footprint, Height, Roof.Overhang);
-		const FGrammarRoofFrame Frame = FGrammarRoofFrameMath::BuildFrame(Base, GrammarRoofDirection::GabledRidgeDirection(Base, Roof, Tags), Height, Height + Roof.Height);
+		const FGrammarRoofFrame Frame = FGrammarRoofFrameMath::BuildFrame(Base, GrammarRoofDirection::RidgeDirection(Base, Roof, Tags), Height, Height + Roof.Height);
 
 		TArray<FVector> Vertices = Base;
 		for (const FVector& Point : Base)
@@ -67,7 +67,7 @@ namespace
 	FGrammarMeshSpec HippedRoofMesh(const FString& SourceName, const TArray<FVector2D>& Footprint, double Height, const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags)
 	{
 		TArray<FVector> Base = FGrammarRoofFrameMath::RoofBaseVertices(Footprint, Height, Roof.Overhang);
-		const FGrammarRoofFrame Frame = FGrammarRoofFrameMath::BuildFrame(Base, GrammarRoofDirection::RoofOrientationDirection(Base, Tags), Height, Height + Roof.Height);
+		const FGrammarRoofFrame Frame = FGrammarRoofFrameMath::BuildFrame(Base, GrammarRoofDirection::RidgeDirection(Base, Roof, Tags), Height, Height + Roof.Height);
 
 		const double LongSpan = Frame.MaxLong - Frame.MinLong;
 		const double SideSpan = Frame.MaxSide - Frame.MinSide;

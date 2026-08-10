@@ -23,7 +23,12 @@ class UMaterialInstanceConstant;
 // (NaniteSettings.bEnabled, BuildFromMeshDescriptions' parameter list, FSavePackageArgs, the
 // UMaterialEditingLibrary call shapes) to need correction against your UE5.6 headers. If this
 // module fails to compile, start here.
-class FGrammarKitAssetBuilder
+//
+// Was never marked for DLL export until ABuildingInstancePoolActor::BakeToStaticMesh
+// (BuildingGrammarRuntime) became this class's first cross-module caller -- everything before that
+// only ever called it from within this same module (e.g. GrammarKitResolver.cpp), so the missing
+// BUILDINGGRAMMARGEOMETRY_API silently never mattered until then (link error, not a compile error).
+class BUILDINGGRAMMARGEOMETRY_API FGrammarKitAssetBuilder
 {
 public:
 	static UStaticMesh* GetOrCreateUnitBoxMesh();
@@ -43,9 +48,20 @@ public:
 	// with for everything else.
 	static UMaterialInstanceConstant* GetOrCreateRoleMaterial(const FString& Role);
 
+	// One persistent UMaterialInstanceConstant per distinct (Role, MaterialName, Color) combination,
+	// parented to GetOrCreateRoleMaterial(Role) with BaseColor set to Color -- a *saveable* stand-in
+	// for FGrammarKitResolver::ResolveMaterial's runtime UMaterialInstanceDynamic (which is
+	// Outer=GetTransientPackage()/RF_Transient and does not survive being saved as part of another
+	// asset/actor's package). Used by ABuildingInstancePoolActor::BakeToStaticMesh, whose baked
+	// UStaticMesh's material slots must be real, persistent references like any other static mesh
+	// asset. Idempotent like the other GetOrCreate* functions here: identical (Role, MaterialName,
+	// Color) combinations across different cells/bakes share one asset instead of duplicating it.
+	static UMaterialInstanceConstant* GetOrCreateColorVariant(const FString& Role, const FString& MaterialName, const FLinearColor& Color);
+
 	// Package paths, exposed so FGrammarKitResolver's packaged-game (non-editor) load path uses
 	// the exact same location these functions bake to.
 	static const TCHAR* GetUnitBoxMeshPath();
 	static const TCHAR* GetMasterMaterialPath();
 	static FString GetRoleMaterialPath(const FString& Role);
+	static FString GetColorVariantPath(const FString& Role, const FString& MaterialName, const FLinearColor& Color);
 };

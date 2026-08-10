@@ -123,7 +123,7 @@ namespace GrammarRoofDirection
 		return FVector2D::ZeroVector;
 	}
 
-	FVector2D GabledRidgeDirection(const TArray<FVector>& Base, const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags)
+	FVector2D RidgeDirection(const TArray<FVector>& Base, const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags)
 	{
 		const FVector2D Oriented = RoofOrientationDirection(Base, Tags);
 		if (!Oriented.IsNearlyZero())

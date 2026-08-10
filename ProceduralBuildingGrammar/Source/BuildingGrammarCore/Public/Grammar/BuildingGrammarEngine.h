@@ -22,4 +22,11 @@ public:
 	// ValueError for both cases; this port uses a return-value/OutError convention instead of C++
 	// exceptions, matching typical Unreal code style for expected per-building skip conditions.
 	static bool GenerateBuildingSpec(const TArray<FVector2D>& Footprint, const TMap<FString, FString>& Tags, const FBuildingGrammarConfig& Config, const FString& SourceName, FGrammarBuildingSpec& OutSpec, FString& OutError);
+
+	// Shifts every hero-mesh vertex and placement's Z by MinHeight -- applied by every generation
+	// entry point after GenerateBuildingSpec (building-part footprints sit at their own ground level,
+	// not the parent's) so it lives here rather than duplicated per caller (originally file-local to
+	// BuildingGenerationLibrary.cpp; also needed by ABuildingInstancePoolActor::RegenerateFromSource,
+	// which regenerates a cell outside that library's own call sites). No-ops if MinHeight is ~0.
+	static void ApplyMinHeightOffset(FGrammarBuildingSpec& Spec, double MinHeight);
 };

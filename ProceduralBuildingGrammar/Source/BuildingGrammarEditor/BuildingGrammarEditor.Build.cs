@@ -17,6 +17,7 @@ public class BuildingGrammarEditor : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"UnrealEd",
+			"EditorFramework",
 			"BuildingGrammarCore",
 			"BuildingGrammarGeometry",
 			"BuildingGrammarRuntime"

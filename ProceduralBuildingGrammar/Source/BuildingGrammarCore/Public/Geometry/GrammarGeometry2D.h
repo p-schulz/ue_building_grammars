@@ -62,7 +62,11 @@ public:
 	// (MinX, MinY, MaxX, MaxY).
 	static FBox2D Bounds(const TArray<FVector2D>& Points);
 
-	// Longest horizontal AABB axis as a unit direction: (1,0) if wider than tall, else (0,1).
+	// Unit direction of Points' own longest boundary edge (Points treated as a closed ring -- see
+	// GetSegments), used as the default ridge/detail alignment for gabled/hipped roofs and their
+	// tiles/dormers/chimneys when no OSM orientation tag is present. Deliberately NOT the wider axis
+	// of the axis-aligned bounding box -- that would snap every rotated footprint's roof features to
+	// world North/East instead of following the building's own shape.
 	static FVector2D LongestAxisDirection(const TArray<FVector2D>& Points);
 
 	static double PointToSegmentDistanceSquared(const FVector2D& P, const FVector2D& A, const FVector2D& B);

@@ -258,8 +258,8 @@ namespace GrammarRoofDetails
 		}
 		else
 		{
-			const FVector2D Direction = (Roof.Type == EGrammarRoofType::Gabled)
-				? GrammarRoofDirection::GabledRidgeDirection(Base, Roof, Tags)
+			const FVector2D Direction = (Roof.Type == EGrammarRoofType::Gabled || Roof.Type == EGrammarRoofType::Hipped)
+				? GrammarRoofDirection::RidgeDirection(Base, Roof, Tags)
 				: FGrammarGeometry2D::LongestAxisDirection(ToXY(Base));
 			Frame = FGrammarRoofFrameMath::BuildFrame(Base, Direction, Height, Height + Roof.Height);
 		}

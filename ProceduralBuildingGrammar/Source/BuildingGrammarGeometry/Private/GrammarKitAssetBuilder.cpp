@@ -31,6 +31,15 @@ FString FGrammarKitAssetBuilder::GetRoleMaterialPath(const FString& Role)
 	return FString::Printf(TEXT("/ProceduralBuildingGrammar/Kits/Materials/MI_%s"), *SanitizeRoleForAssetName(Role));
 }
 
+FString FGrammarKitAssetBuilder::GetColorVariantPath(const FString& Role, const FString& MaterialName, const FLinearColor& Color)
+{
+	// Quantized to bytes purely for a stable, dedupable asset name -- the actual BaseColor
+	// parameter set on the asset (GetOrCreateColorVariant) uses the full-precision Color.
+	const FColor Quantized = Color.ToFColor(/*bSRGB=*/false);
+	return FString::Printf(TEXT("/ProceduralBuildingGrammar/Kits/Materials/Variants/MI_%s_%s_%02X%02X%02X"),
+		*SanitizeRoleForAssetName(Role), *SanitizeRoleForAssetName(MaterialName), Quantized.R, Quantized.G, Quantized.B);
+}
+
 #if WITH_EDITOR
 
 #include "Engine/StaticMesh.h"
@@ -154,7 +163,16 @@ UStaticMesh* FGrammarKitAssetBuilder::GetOrCreateUnitBoxMesh()
 		VertexPositions[VertexIDs[Index]] = GUnitBoxCorners[Index];
 	}
 
-	static const FVector2f FaceUVs[4] = { FVector2f(0, 0), FVector2f(1, 0), FVector2f(1, 1), FVector2f(0, 1) };
+	// Rotated 270 degrees clockwise (equivalently 90 degrees counter-clockwise) from the "natural"
+	// (0,0)-(1,0)-(1,1)-(0,1) unit-square mapping: started as a 90-degree-clockwise rotation, then
+	// turned another 180 degrees on top after the first rotation was confirmed upside down in-engine.
+	// Every kit role (door/sill/roof-tile/antenna/mullion/...) resolves to this exact same shared
+	// mesh (see GrammarKitResolver.h's header comment), so this rotates all of them identically, not
+	// just windows. A 90-degree rotation of a square UV mapping is just a cyclic shift of which
+	// corner gets which UV value -- the four possible rotations, in case this needs adjusting again:
+	// 0deg { (0,0),(1,0),(1,1),(0,1) }, 90deg CW { (0,1),(0,0),(1,0),(1,1) } (upside down -- see
+	// above), 180deg { (1,1),(0,1),(0,0),(1,0) }, 270deg CW/90deg CCW (current) below.
+	static const FVector2f FaceUVs[4] = { FVector2f(1, 0), FVector2f(1, 1), FVector2f(0, 1), FVector2f(0, 0) };
 
 	for (const int32(&Face)[4] : GUnitBoxFaces)
 	{
@@ -277,11 +295,40 @@ UMaterialInstanceConstant* FGrammarKitAssetBuilder::GetOrCreateRoleMaterial(cons
 	return Instance;
 }
 
+UMaterialInstanceConstant* FGrammarKitAssetBuilder::GetOrCreateColorVariant(const FString& Role, const FString& MaterialName, const FLinearColor& Color)
+{
+	const FString PackagePathStr = GetColorVariantPath(Role, MaterialName, Color);
+	const TCHAR* PackagePath = *PackagePathStr;
+	if (UMaterialInstanceConstant* Existing = LoadObject<UMaterialInstanceConstant>(nullptr, PackagePath))
+	{
+		return Existing;
+	}
+
+	UMaterialInstanceConstant* RoleMaterial = GetOrCreateRoleMaterial(Role);
+	if (!RoleMaterial)
+	{
+		return nullptr;
+	}
+
+	UPackage* Package = CreateAssetPackage(PackagePath);
+	UMaterialInstanceConstant* Instance = NewObject<UMaterialInstanceConstant>(Package, FName(*FPackageName::GetShortName(PackagePath)), RF_Public | RF_Standalone);
+	Instance->SetParentEditorOnly(RoleMaterial);
+	// Matches FGrammarKitResolver::ResolveMaterial's runtime-MID contract: only BaseColor is
+	// overridden here, Roughness/Metallic/everything else comes from RoleMaterial -- the difference
+	// is this instance is a real, saveable asset instead of a transient runtime object, so it's
+	// usable as a baked UStaticMesh's material slot (see ABuildingInstancePoolActor::BakeToStaticMesh).
+	Instance->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(TEXT("BaseColor")), Color);
+
+	SaveAssetPackage(Package, Instance, PackagePath);
+	return Instance;
+}
+
 #else // !WITH_EDITOR
 
 UStaticMesh* FGrammarKitAssetBuilder::GetOrCreateUnitBoxMesh() { return nullptr; }
 UMaterial* FGrammarKitAssetBuilder::GetOrCreateMasterMaterial() { return nullptr; }
 UMaterialInstanceConstant* FGrammarKitAssetBuilder::GetOrCreateRoleMaterial(const FString&) { return nullptr; }
+UMaterialInstanceConstant* FGrammarKitAssetBuilder::GetOrCreateColorVariant(const FString&, const FString&, const FLinearColor&) { return nullptr; }
 const TCHAR* FGrammarKitAssetBuilder::GetUnitBoxMeshPath() { return TEXT("/ProceduralBuildingGrammar/Kits/SM_GrammarUnitBox"); }
 const TCHAR* FGrammarKitAssetBuilder::GetMasterMaterialPath() { return TEXT("/ProceduralBuildingGrammar/Kits/M_GrammarKit"); }
 

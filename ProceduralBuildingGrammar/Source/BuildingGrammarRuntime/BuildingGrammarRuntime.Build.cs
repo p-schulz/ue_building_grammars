@@ -21,6 +21,12 @@ public class BuildingGrammarRuntime : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
+			// ABuildingInstancePoolActor::BakeToStaticMesh builds an FMeshDescription (via
+			// FStaticMeshAttributes) to feed UStaticMesh::BuildFromMeshDescriptions -- same pair
+			// BuildingGrammarGeometry.Build.cs already lists for GrammarKitAssetBuilder.cpp's
+			// identical pattern.
+			"MeshDescription",
+			"StaticMeshDescription"
 		});
 
 		if (Target.bBuildEditor)
@@ -28,6 +34,11 @@ public class BuildingGrammarRuntime : ModuleRules
 			// FBuildingActorPersistence's disk-backed save-and-unload path (FEditorFileUtils) is
 			// editor-only -- guarded by WITH_EDITOR in BuildingActorPersistence.cpp.
 			PrivateDependencyModuleNames.Add("UnrealEd");
+			// ABuildingInstancePoolActor::BakeToStaticMesh's FMeshDescriptionToDynamicMesh /
+			// FDynamicMeshToMeshDescription conversion, also editor-only (WITH_EDITOR-guarded).
+			PrivateDependencyModuleNames.Add("MeshConversion");
+			// BakeToStaticMesh's FAssetRegistryModule::AssetCreated call (new baked mesh asset).
+			PrivateDependencyModuleNames.Add("AssetRegistry");
 		}
 	}
 }

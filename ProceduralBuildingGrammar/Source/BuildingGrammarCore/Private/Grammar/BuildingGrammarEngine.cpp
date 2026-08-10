@@ -201,3 +201,24 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 	OutSpec.Placements = MoveTemp(Placements);
 	return true;
 }
+
+void FBuildingGrammarEngine::ApplyMinHeightOffset(FGrammarBuildingSpec& Spec, double MinHeight)
+{
+	if (FMath::IsNearlyZero(MinHeight))
+	{
+		return;
+	}
+	for (FGrammarMeshSpec& Mesh : Spec.HeroMeshes)
+	{
+		for (FVector& Vertex : Mesh.Vertices)
+		{
+			Vertex.Z += MinHeight;
+		}
+	}
+	for (FGrammarPlacementRecord& Placement : Spec.Placements)
+	{
+		FVector Location = Placement.Transform.GetLocation();
+		Location.Z += MinHeight;
+		Placement.Transform.SetLocation(Location);
+	}
+}

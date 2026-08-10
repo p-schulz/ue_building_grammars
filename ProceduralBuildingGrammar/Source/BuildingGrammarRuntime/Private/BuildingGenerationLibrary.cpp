@@ -5,34 +5,14 @@
 #include "Osm/BuildingFootprintAssembler.h"
 #include "Osm/BuildingPartResolver.h"
 #include "Osm/BuildingVolumeGrid.h"
+#include "Osm/StreetNetworkAssembler.h"
+#include "Osm/StreetRidgeAlignment.h"
 #include "Geo/LocalTangentPlaneProjection.h"
 #include "Grammar/BuildingGrammarEngine.h"
 #include "GrammarKitResolver.h"
 #include "Engine/World.h"
-
-namespace
-{
-	void ApplyMinHeightOffset(FGrammarBuildingSpec& Spec, double MinHeight)
-	{
-		if (FMath::IsNearlyZero(MinHeight))
-		{
-			return;
-		}
-		for (FGrammarMeshSpec& Mesh : Spec.HeroMeshes)
-		{
-			for (FVector& Vertex : Mesh.Vertices)
-			{
-				Vertex.Z += MinHeight;
-			}
-		}
-		for (FGrammarPlacementRecord& Placement : Spec.Placements)
-		{
-			FVector Location = Placement.Transform.GetLocation();
-			Location.Z += MinHeight;
-			Placement.Transform.SetLocation(Location);
-		}
-	}
-}
+#include "Async/Async.h"
+#include "MeshDescription.h"
 
 bool UBuildingGenerationLibrary::LoadResolvedVolumesFromOsmFile(
 	const FString& OsmFilePath,
@@ -67,6 +47,21 @@ bool UBuildingGenerationLibrary::LoadResolvedVolumesFromOsmFile(
 	// different spatial cell than the part itself once a caller buckets OutVolumes (see
 	// FBuildingVolumeGrid), so resolution has to happen before any such split, not per-cell.
 	OutVolumes = FBuildingPartResolver::Resolve(ProjectedFootprints, Config);
+
+	// Resolves EGrammarRidgeAlignment::ClosestStreet geometrically by injecting a synthetic
+	// grammar:roof:ridge_direction tag onto each volume (see Osm/StreetRidgeAlignment.h) -- gated
+	// behind ConfigNeedsStreetAlignment so configs that only ever use LongestAxis skip parsing/
+	// matching streets entirely.
+	if (FGrammarStreetAlignment::ConfigNeedsStreetAlignment(Config))
+	{
+		TArray<FGrammarStreetSegment> Streets = FStreetNetworkAssembler::Assemble(Document);
+		for (FGrammarStreetSegment& Street : Streets)
+		{
+			Street.Points = Projection.ProjectRing(Street.Points);
+		}
+		FGrammarStreetAlignment::ApplyRidgeDirectionTags(OutVolumes, Streets, Config.RoofStreetAlignmentSearchRadius);
+	}
+
 	return true;
 }
 
@@ -117,7 +112,7 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
 		{
 			continue;
 		}
-		ApplyMinHeightOffset(Spec, Volume.MinHeight);
+		FBuildingGrammarEngine::ApplyMinHeightOffset(Spec, Volume.MinHeight);
 
 		OutPool->ApplyBuildingSpec(Spec, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 		++GeneratedCount;
@@ -137,9 +132,10 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 	double CellSize,
 	FName RuntimeGridName,
 	bool bSaveAndUnloadPerCell,
-	int32 CellsPerLevelReload)
+	int32 CellsPerLevelReload,
+	bool bBakeToStaticMeshPerCell)
 {
-	return GenerateBuildingsFromOsmFileChunked(WorldContextObject, OsmFilePath, OriginLatitude, OriginLongitude, Config, OutPools, CellSize, RuntimeGridName, bSaveAndUnloadPerCell, CellsPerLevelReload, [](int32, int32) { return true; });
+	return GenerateBuildingsFromOsmFileChunked(WorldContextObject, OsmFilePath, OriginLatitude, OriginLongitude, Config, OutPools, CellSize, RuntimeGridName, bSaveAndUnloadPerCell, CellsPerLevelReload, bBakeToStaticMeshPerCell, [](int32, int32) { return true; });
 }
 
 int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
@@ -153,6 +149,7 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 	FName RuntimeGridName,
 	bool bSaveAndUnloadPerCell,
 	int32 CellsPerLevelReload,
+	bool bBakeToStaticMeshPerCell,
 	TFunctionRef<bool(int32 CellsCompleted, int32 TotalCells)> OnCellCompleted)
 {
 	TArray<FGrammarBuildingVolume> Volumes;
@@ -211,11 +208,45 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 		PendingSave.Reset();
 	};
 
+	// Single-slot pipeline for bBakeToStaticMeshPerCell: at most one cell's bake is ever "in flight"
+	// at a time. A cell's expensive, UObject-free merge work (BuildBakedMeshDescription) runs on a
+	// background task while the NEXT cell generates; the actual asset save/actor swap (must stay on
+	// the game thread -- see FinalizePendingBake) happens once that merge is ready, interleaved with
+	// generation rather than blocking it. PoolActor is kept alive (not yet destroyed) the whole time
+	// a bake is pending, so it must never survive a level reload -- see FlushPendingSaveAndReload and
+	// the barrier after the main loop below.
+	struct FPendingBake
+	{
+		ABuildingInstancePoolActor* PoolActor = nullptr;
+		FString PackagePath;
+		TArray<TObjectPtr<UMaterialInterface>> BakedMaterials;
+		TFuture<FMeshDescription> MergeFuture;
+	};
+	TOptional<FPendingBake> PendingBake;
+
+	auto FinalizePendingBake = [&PendingBake]()
+	{
+		if (!PendingBake.IsSet())
+		{
+			return;
+		}
+		FMeshDescription MeshDescription = PendingBake->MergeFuture.Get(); // blocks only if not already done
+		if (UStaticMesh* BakedMesh = ABuildingInstancePoolActor::FinalizeBakedAsset(
+			    MoveTemp(MeshDescription), PendingBake->BakedMaterials, PendingBake->PackagePath))
+		{
+			ABuildingInstancePoolActor::ReplaceWithBakedAsset(PendingBake->PoolActor, BakedMesh);
+		}
+		PendingBake.Reset();
+	};
+
 	// World is captured by reference since a successful reload reassigns it to a freshly loaded
 	// UWorld*; every AActor*/UWorld* obtained before a reload is stale afterward.
 	bool bReloadFailed = false;
-	auto FlushPendingSaveAndReload = [&World, &FlushPendingSave, &bReloadFailed]()
+	auto FlushPendingSaveAndReload = [&World, &FlushPendingSave, &bReloadFailed, &FinalizePendingBake]()
 	{
+		// No pending bake may survive a level reload -- it still holds a live PoolActor pointer
+		// waiting to be destroyed, and a reload destroys the entire UWorld out from under it.
+		FinalizePendingBake();
 		FlushPendingSave();
 		if (!FBuildingActorPersistence::SaveAndReloadLevel(World))
 		{
@@ -244,6 +275,16 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 			Pool->SetBuildingRuntimeGrid(RuntimeGridName);
 		}
 
+		// Only worth keeping around for pools that might later be regenerated on demand (see
+		// ABuildingInstancePoolActor::RegenerateFromSource) -- a baked cell is destroyed and replaced
+		// by a plain AStaticMeshActor before this function returns, so there would be nothing left to
+		// regenerate; skip the (otherwise harmless) copy for that path.
+		if (!bBakeToStaticMeshPerCell)
+		{
+			Pool->SourceVolumes = CellPair.Value;
+			Pool->SourceConfig = Config;
+		}
+
 		for (const FGrammarBuildingVolume& Volume : CellPair.Value)
 		{
 			FGrammarBuildingSpec Spec;
@@ -252,24 +293,51 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 			{
 				continue;
 			}
-			ApplyMinHeightOffset(Spec, Volume.MinHeight);
+			FBuildingGrammarEngine::ApplyMinHeightOffset(Spec, Volume.MinHeight);
 
 			Pool->ApplyBuildingSpec(Spec, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 			++GeneratedCount;
 		}
 		Pool->FlushHeroMeshUpdates();
 
-		if (bSaveAndUnloadPerCell)
+		// Kick off this cell's background merge before finalizing the PREVIOUS cell's pending bake,
+		// so both run concurrently for a stretch (the new merge in the background, the previous
+		// cell's Nanite build/SavePackage/actor swap on the game thread) before generation moves on
+		// to the next cell -- see the pipeline comment above FlushPendingSaveAndReload. Pool is
+		// destroyed once its own bake is eventually finalized, so there is nothing left of the
+		// original ABuildingInstancePoolActor for the batching below to save/return -- skip it
+		// entirely for a baked cell.
+		bool bPoolReplacedByBake = false;
+		if (bBakeToStaticMeshPerCell)
 		{
-			PendingSave.Add(Pool);
-			if (PendingSave.Num() >= BatchSize)
-			{
-				FlushPendingSaveAndReload();
-			}
+			FBuildingBakeExtractedData Data = Pool->ExtractBakeData();
+			TArray<TObjectPtr<UMaterialInterface>> BakedMaterials = Data.BakedMaterials;
+			TFuture<FMeshDescription> MergeFuture = Async(EAsyncExecution::TaskGraph,
+				[Data = MoveTemp(Data)]() { return ABuildingInstancePoolActor::BuildBakedMeshDescription(Data); });
+
+			FinalizePendingBake();
+			PendingBake.Emplace();
+			PendingBake->PoolActor = Pool;
+			PendingBake->PackagePath = Pool->MakeDefaultBakedAssetPath();
+			PendingBake->BakedMaterials = MoveTemp(BakedMaterials);
+			PendingBake->MergeFuture = MoveTemp(MergeFuture);
+			bPoolReplacedByBake = true;
 		}
-		else
+
+		if (!bPoolReplacedByBake)
 		{
-			OutPools.Add(Pool);
+			if (bSaveAndUnloadPerCell)
+			{
+				PendingSave.Add(Pool);
+				if (PendingSave.Num() >= BatchSize)
+				{
+					FlushPendingSaveAndReload();
+				}
+			}
+			else
+			{
+				OutPools.Add(Pool);
+			}
 		}
 
 		++CellsCompleted;
@@ -278,6 +346,10 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 			break;
 		}
 	}
+
+	// Nothing may be left mid-flight when this function returns -- finalize any bake still pending
+	// before the final save (same reasoning as FlushPendingSaveAndReload's own barrier).
+	FinalizePendingBake();
 
 	// Final partial batch: save whatever's left, but don't pay for a reload nobody needs anymore --
 	// the run is ending regardless. Still save the level itself so this last batch is guaranteed on
