@@ -33,7 +33,11 @@ public class BuildingGrammarEditor : ModuleRules
 			"UMGEditor",
 			"PropertyEditor",
 			"ToolMenus",
-			"DesktopPlatform"
+			"DesktopPlatform",
+			// "Generate Buildings from OSM (PCG)..." drives the BuildingGrammarPCG module's
+			// alternative pipeline: loads its graph asset, sets its OsmFilePath graph parameter, and
+			// triggers a UPCGComponent's Generate() -- see OnGeneratePCGClicked.
+			"PCG"
 		});
 	}
 }

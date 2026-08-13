@@ -17,15 +17,21 @@ struct FGrammarBuildingSpec;
 struct FMeshDescription;
 
 // Records what FGrammarKitResolver::ResolveMaterial was called with for a given bucket/hero-material
-// slot, so the actual UMaterialInterface* (always a UMaterialInstanceDynamic -- see ResolveMaterial's
-// comment) can be re-resolved after a reload instead of persisted directly. MIDs are created with
-// Outer=GetTransientPackage() and are RF_Transient (GrammarKitResolver.cpp), so a hard UPROPERTY
-// reference to one comes back null after this actor's external package is saved and reloaded -- see
-// PostLoad.
+// slot. ResolveMaterial now always returns a persistent UMaterialInstanceConstant asset (see its own
+// comment), which survives an ordinary UPROPERTY reference across save/reload fine, so this re-
+// resolution mechanism (see PostLoad) is technically redundant today -- kept in place anyway as a
+// harmless, idempotent safety net rather than risking a subtler removal (e.g. it still helps if an
+// older-format actor references an asset under a since-renamed style/role path).
 USTRUCT()
 struct FBuildingMaterialResolveKey
 {
 	GENERATED_BODY()
+
+	// The FFacadeStyleConfig::Name this material was resolved for -- see
+	// FGrammarMeshSpec::StyleName's comment. Needed here (not just on the spec structs) so PostLoad/
+	// ExtractBakeData can re-resolve/re-bake the exact same per-style asset later.
+	UPROPERTY()
+	FString StyleName;
 
 	UPROPERTY()
 	FString Role;
@@ -118,9 +124,12 @@ public:
 	// Material after a reload (see PostLoad) -- it plays no role in rendering directly, since
 	// Material itself (if not null) is expected to already have it baked in (see
 	// FGrammarKitResolver::ResolveMaterial). Pass FLinearColor::White if Material is null or the
-	// caller doesn't care about this bucket surviving a save+reload cycle.
+	// caller doesn't care about this bucket surviving a save+reload cycle. StyleName is recorded
+	// alongside RoleTag/VariantKey/MaterialColor for the same reload-survival reason -- see
+	// FBuildingMaterialResolveKey's comment; pass an empty string if it doesn't matter (e.g. Material
+	// is null).
 	UFUNCTION(BlueprintCallable, Category = "Building Grammar")
-	void AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh, UMaterialInterface* Material = nullptr, FLinearColor MaterialColor = FLinearColor::White);
+	void AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh, UMaterialInterface* Material = nullptr, FLinearColor MaterialColor = FLinearColor::White, FString StyleName = FString());
 
 	// Removes every instance from every bucket (keeps the bucket components themselves, so
 	// re-populating after a regenerate doesn't repeatedly reallocate HISM components).
@@ -147,7 +156,7 @@ public:
 	void ApplyBuildingSpec(
 		const FGrammarBuildingSpec& Spec,
 		TFunctionRef<UStaticMesh* (const FString& Role, const FString& VariantKey)> ResolveKitMesh,
-		TFunctionRef<UMaterialInterface* (const FString& Role, const FString& MaterialName, const FLinearColor& Color)> ResolveMaterial);
+		TFunctionRef<UMaterialInterface* (const FString& StyleName, const FString& Role, const FString& MaterialName, const FLinearColor& Color)> ResolveMaterial);
 
 	// Appends BuiltMesh's triangles (already in absolute UE-centimeter world-space -- see
 	// ApplyBuildingSpec's comment) into this pool's single shared hero-mesh component, lazily
@@ -159,7 +168,7 @@ public:
 	// Color record how Material was resolved, purely for PostLoad re-resolution (see AddInstance's
 	// MaterialColor comment) -- pass whatever ResolveMaterial was called with, or empty strings if
 	// Material is null.
-	void AppendHeroMesh(const UE::Geometry::FDynamicMesh3& BuiltMesh, UMaterialInterface* Material, const FString& RoleTag, const FString& MaterialName, const FLinearColor& Color);
+	void AppendHeroMesh(const UE::Geometry::FDynamicMesh3& BuiltMesh, UMaterialInterface* Material, const FString& StyleName, const FString& RoleTag, const FString& MaterialName, const FLinearColor& Color);
 
 	// Pushes every AppendHeroMesh() edit since the last flush to the render proxy. AppendHeroMesh
 	// defers its change notification -- rebuilding the render proxy after every single building

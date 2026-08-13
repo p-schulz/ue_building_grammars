@@ -24,19 +24,28 @@ class UMaterialInterface;
 // non-uniformly scaled per instance via each placement's FTransform, covers every role the
 // grammar engine emits a placement for today.
 //
-// ResolveMaterial caches one UMaterialInstanceDynamic per distinct (Role, MaterialName) pair
-// (first Color requested for that pair wins if the same pair is later requested with a different
-// color) -- this deliberately matches blender_adapter.py's own behavior, where materials are
-// shared globally by name and only "upgraded" in place for texture changes, not recolored per
-// caller. Each MID is a child of GetOrCreateRoleMaterial(Role) (GrammarKitAssetBuilder.h) -- a
-// persistent, artist-editable UMaterialInstanceConstant per Role -- rather than of the raw master
-// material, and only ever overrides BaseColor: Roughness/Metallic and anything else (textures,
-// custom parameters) come from whatever that role instance is set to, so hand-tuning it in the
-// Material Instance Editor actually sticks across regeneration instead of being clobbered by a
-// runtime override.
+// ResolveMaterial resolves to a persistent UMaterialInstanceConstant
+// (GrammarKitAssetBuilder.h's GetOrCreateColorVariant), one per distinct (StyleName, Role,
+// MaterialName, Color) combination -- StyleName (FGrammarMeshSpec::StyleName/
+// FGrammarPlacementRecord::StyleName, i.e. the FFacadeStyleConfig::Name that produced this mesh/
+// placement) keeps different building styles' materials as separate, independently art-directable
+// assets under their own Content Browser sub-directory rather than one instance shared across every
+// style that happens to reuse the same Role/MaterialName. This is a real, saveable asset -- not a
+// transient UMaterialInstanceDynamic -- so it survives save/reload as a normal asset reference and
+// is exactly what's baked into a static mesh's material slot when a cell is baked
+// (ABuildingInstancePoolActor::BakeToStaticMesh calls GetOrCreateColorVariant directly for the same
+// reason). Each instance is a child of GetOrCreateRoleMaterial(StyleName, Role)
+// (GrammarKitAssetBuilder.h) -- a persistent, artist-editable UMaterialInstanceConstant per
+// (StyleName, Role) -- rather than of the raw master material, and only ever overrides BaseColor:
+// Roughness/Metallic and anything else (textures, custom parameters) come from whatever that
+// (StyleName, Role) instance is set to, so hand-tuning it in the Material Instance Editor actually
+// sticks across regeneration instead of being clobbered by a runtime override. Results are cached
+// in-memory by the full (StyleName, Role, MaterialName) key purely to avoid repeated LoadObject/
+// path-string work within one session -- the underlying asset lookup is itself idempotent, so this
+// cache is a performance optimization, not a correctness requirement.
 class BUILDINGGRAMMARGEOMETRY_API FGrammarKitResolver
 {
 public:
 	static UStaticMesh* ResolveKitMesh(const FString& Role, const FString& VariantKey);
-	static UMaterialInterface* ResolveMaterial(const FString& Role, const FString& MaterialName, const FLinearColor& Color);
+	static UMaterialInterface* ResolveMaterial(const FString& StyleName, const FString& Role, const FString& MaterialName, const FLinearColor& Color);
 };

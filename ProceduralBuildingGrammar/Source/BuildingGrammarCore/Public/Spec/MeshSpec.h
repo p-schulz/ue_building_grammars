@@ -26,6 +26,15 @@ struct BUILDINGGRAMMARCORE_API FGrammarMeshSpec
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
 	FString Material;
 
+	// The FFacadeStyleConfig::Name this mesh was generated from -- stamped by
+	// FBuildingGrammarEngine::GenerateBuildingSpec, one of the whole-building style's Styles array
+	// or the roof-specific override style that actually produced this mesh. Used downstream
+	// (FGrammarKitResolver::ResolveMaterial) to keep material instances separate per style, e.g. so
+	// an "apartments" building's window material and an "office" building's window material are
+	// independently art-directable assets rather than one shared-by-role instance.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
+	FString StyleName;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
 	FLinearColor Color = FLinearColor::White;
 

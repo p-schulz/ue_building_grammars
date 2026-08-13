@@ -3,15 +3,16 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/UObjectGlobals.h"
 
 namespace
 {
 	// Shared across every call site (editor tool, generation library, streaming subsystem) within
-	// one process/PIE session. Not persisted -- a packaged game rebuilds this cache from scratch
-	// each run, which is fine since MIDs are cheap and inherently runtime/session-only.
-	TMap<FString, TWeakObjectPtr<UMaterialInstanceDynamic>> GMaterialInstanceCache;
+	// one process/PIE session. Not persisted -- rebuilt from scratch each run/session, which is
+	// fine since the underlying LoadObject/GetOrCreateColorVariant lookup this caches is itself
+	// idempotent; this is purely a perf optimization, not a correctness requirement (see
+	// GrammarKitResolver.h's header comment).
+	TMap<FString, TWeakObjectPtr<UMaterialInterface>> GMaterialInstanceCache;
 }
 
 UStaticMesh* FGrammarKitResolver::ResolveKitMesh(const FString& Role, const FString& VariantKey)
@@ -37,39 +38,40 @@ UStaticMesh* FGrammarKitResolver::ResolveKitMesh(const FString& Role, const FStr
 #endif
 }
 
-UMaterialInterface* FGrammarKitResolver::ResolveMaterial(const FString& Role, const FString& MaterialName, const FLinearColor& Color)
+UMaterialInterface* FGrammarKitResolver::ResolveMaterial(const FString& StyleName, const FString& Role, const FString& MaterialName, const FLinearColor& Color)
 {
-	const FString CacheKey = Role + TEXT("|") + MaterialName;
-	if (const TWeakObjectPtr<UMaterialInstanceDynamic>* Existing = GMaterialInstanceCache.Find(CacheKey))
+	// Color is deliberately not part of the cache key on its own -- it's folded into MaterialName
+	// upstream instead (see BuildingGrammarEngine.cpp's WallMaterialName-style per-color-variant
+	// naming), matching how GetColorVariantPath already derives its own asset name from
+	// (StyleName, Role, MaterialName, Color) together. Including Color here too would just be
+	// redundant, not incorrect.
+	const FString CacheKey = StyleName + TEXT("|") + Role + TEXT("|") + MaterialName;
+	if (const TWeakObjectPtr<UMaterialInterface>* Existing = GMaterialInstanceCache.Find(CacheKey))
 	{
-		if (UMaterialInstanceDynamic* ExistingMID = Existing->Get())
+		if (UMaterialInterface* ExistingMaterial = Existing->Get())
 		{
-			return ExistingMID;
+			return ExistingMaterial;
 		}
 	}
 
 #if WITH_EDITOR
-	UMaterialInterface* RoleMaterial = FGrammarKitAssetBuilder::GetOrCreateRoleMaterial(Role);
+	// GetOrCreateColorVariant is the single material-resolution path now, used identically by live
+	// generation (here) and by ABuildingInstancePoolActor::BakeToStaticMesh -- see this class's
+	// header comment for why a persistent asset replaced the former transient
+	// UMaterialInstanceDynamic.
+	UMaterialInterface* Material = FGrammarKitAssetBuilder::GetOrCreateColorVariant(StyleName, Role, MaterialName, Color);
 #else
-	UMaterialInterface* RoleMaterial = LoadObject<UMaterialInterface>(nullptr, *FGrammarKitAssetBuilder::GetRoleMaterialPath(Role));
+	// GetOrCreateColorVariant is WITH_EDITOR-only (like every other GetOrCreate* in that class --
+	// baking new assets isn't possible outside the editor), so a packaged game must load the
+	// already-baked asset directly by path instead.
+	UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, *FGrammarKitAssetBuilder::GetColorVariantPath(StyleName, Role, MaterialName, Color));
 #endif
-	if (!RoleMaterial)
+	if (!Material)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("FGrammarKitResolver: role material not found for role '%s' -- run building generation in-editor at least once so it gets baked before packaging."), *Role);
+		UE_LOG(LogTemp, Warning, TEXT("FGrammarKitResolver: material not found for style '%s' role '%s' material '%s' -- run building generation in-editor at least once so it gets baked before packaging."), *StyleName, *Role, *MaterialName);
 		return nullptr;
 	}
 
-	// Only BaseColor is overridden here -- Roughness/Metallic and anything else (textures, custom
-	// parameters) come from RoleMaterial itself, which is the persistent, artist-editable instance
-	// (see GetOrCreateRoleMaterial's comment). Setting them here too would silently clobber any
-	// hand-tuning done on that asset every time generation runs.
-	UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(RoleMaterial, GetTransientPackage());
-	if (!MID)
-	{
-		return nullptr;
-	}
-	MID->SetVectorParameterValue(TEXT("BaseColor"), Color);
-
-	GMaterialInstanceCache.Add(CacheKey, MID);
-	return MID;
+	GMaterialInstanceCache.Add(CacheKey, Material);
+	return Material;
 }

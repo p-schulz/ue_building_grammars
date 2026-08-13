@@ -24,6 +24,9 @@
 #include "IStructureDetailsView.h"
 #include "UObject/StructOnScope.h"
 #include "Widgets/SWindow.h"
+#include "PCGComponent.h"
+#include "PCGGraph.h"
+#include "Helpers/PCGGraphParametersHelpers.h"
 
 #define LOCTEXT_NAMESPACE "BuildingGrammarEditor"
 
@@ -87,6 +90,12 @@ void FBuildingGrammarEditorModule::RegisterMenus()
 		LOCTEXT("GenerateFromOsmTooltip", "Import an .osm file and generate procedural buildings into the current level"),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnGenerateFromOsmClicked)));
+	Section.AddMenuEntry(
+		"GenerateFromOsmPCG",
+		LOCTEXT("GenerateFromOsmPCG", "Generate Buildings from OSM (PCG)..."),
+		LOCTEXT("GenerateFromOsmPCGTooltip", "Import an .osm file and generate buildings using the BuildingGrammarPCG module's alternative, PCG-graph-based pipeline instead of the deterministic engine. Runs asynchronously -- check the level and Output Log after a moment."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnGeneratePCGClicked)));
 	Section.AddMenuEntry(
 		"BakeToStaticMesh",
 		LOCTEXT("BakeToStaticMesh", "Bake Generated Buildings to Static Meshes..."),
@@ -342,6 +351,114 @@ void FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked()
 		SkippedCount > 0
 			? FText::Format(LOCTEXT("BakeSkippedSuffix", " {0} had no geometry to bake and were left unchanged."), FText::AsNumber(SkippedCount))
 			: FText::GetEmpty()));
+}
+
+// Alternative to OnGenerateFromOsmClicked: drives the BuildingGrammarPCG module's PCG-graph-based
+// pipeline instead of the deterministic C++ engine (see that module's own header comment for how the
+// two relate). Reuses an existing UPCGComponent already pointed at the graph -- preferring the
+// current selection, else searching the whole level -- so repeated clicks drive the same actor
+// instead of spawning a new one each time; only spawns a fresh actor if none is found. Sets the
+// picked file on the component's "OsmFilePath" Graph Parameter (must already be exposed on the graph
+// -- see this plugin's PCG wiring notes) and triggers Generate. PCG graph execution is scheduled
+// asynchronously by UPCGSubsystem, so this can only report that generation was started, not a
+// completed building/pool count the way OnGenerateFromOsmClicked's dialog can.
+void FBuildingGrammarEditorModule::OnGeneratePCGClicked()
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (!DesktopPlatform)
+	{
+		return;
+	}
+
+	TArray<FString> OutFiles;
+	const void* ParentWindowHandle = FSlateApplication::IsInitialized() ? FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr) : nullptr;
+	const bool bOpened = DesktopPlatform->OpenFileDialog(
+		ParentWindowHandle,
+		TEXT("Select an OpenStreetMap .osm file"),
+		FPaths::ProjectDir(),
+		TEXT(""),
+		TEXT("OpenStreetMap XML (*.osm)|*.osm"),
+		EFileDialogFlags::None,
+		OutFiles);
+
+	if (!bOpened || OutFiles.Num() == 0)
+	{
+		return;
+	}
+	const FString OsmFilePath = OutFiles[0];
+
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	const TCHAR* GraphAssetPath = TEXT("/ProceduralBuildingGrammar/BP_BuildingGrammarPCG.BP_BuildingGrammarPCG");
+	UPCGGraph* Graph = LoadObject<UPCGGraph>(nullptr, GraphAssetPath);
+	if (!Graph)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
+			LOCTEXT("PCGGraphNotFound", "Could not load the PCG graph asset at '{0}'. Has it been moved or renamed?"),
+			FText::FromString(GraphAssetPath)));
+		return;
+	}
+
+	UPCGComponent* TargetComponent = nullptr;
+	if (USelection* Selection = GEditor->GetSelectedActors())
+	{
+		for (FSelectionIterator It(*Selection); It; ++It)
+		{
+			if (AActor* SelectedActor = Cast<AActor>(*It))
+			{
+				if (UPCGComponent* Component = SelectedActor->FindComponentByClass<UPCGComponent>())
+				{
+					if (Component->GetGraph() == Graph)
+					{
+						TargetComponent = Component;
+						break;
+					}
+				}
+			}
+		}
+	}
+	if (!TargetComponent)
+	{
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (UPCGComponent* Component = It->FindComponentByClass<UPCGComponent>())
+			{
+				if (Component->GetGraph() == Graph)
+				{
+					TargetComponent = Component;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!TargetComponent)
+	{
+		AActor* SpawnedActor = World->SpawnActor<AActor>();
+		if (!SpawnedActor)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("PCGSpawnFailed", "Failed to spawn an actor for the PCG graph."));
+			return;
+		}
+		SpawnedActor->SetActorLabel(TEXT("BuildingGrammarPCG_Generated"));
+
+		TargetComponent = NewObject<UPCGComponent>(SpawnedActor, TEXT("PCGComponent"));
+		TargetComponent->SetGraph(Graph);
+		SpawnedActor->AddInstanceComponent(TargetComponent);
+		TargetComponent->RegisterComponent();
+	}
+
+	UPCGGraphParametersHelpers::SetStringParameter(TargetComponent->GetGraphInstance(), TEXT("OsmFilePath"), OsmFilePath);
+	TargetComponent->Generate(/*bForce=*/true);
+
+	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
+		LOCTEXT("PCGGenerationStarted", "Started PCG generation on '{0}' from '{1}'. PCG graph execution runs asynchronously -- check the level shortly for results, and the Output Log for any node errors (e.g. \"No OSM file path set\" means the graph doesn't expose an 'OsmFilePath' Graph Parameter yet, or it isn't wired to the data-source nodes)."),
+		FText::FromString(TargetComponent->GetOwner()->GetActorLabel()),
+		FText::FromString(FPaths::GetCleanFilename(OsmFilePath))));
 }
 
 void FBuildingGrammarEditorModule::OnPickBuildingClicked()

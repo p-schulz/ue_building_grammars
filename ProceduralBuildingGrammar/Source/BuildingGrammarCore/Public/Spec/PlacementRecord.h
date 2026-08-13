@@ -26,6 +26,11 @@ struct BUILDINGGRAMMARCORE_API FGrammarPlacementRecord
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
 	FString VariantKey;
 
+	// The FFacadeStyleConfig::Name this placement was generated from -- see
+	// FGrammarMeshSpec::StyleName's comment for why (same reasoning, instancing-path counterpart).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Grammar")
+	FString StyleName;
+
 	// World-space (project-local-meters, not yet scaled to UE centimeters) instance transform --
 	// Location and Scale (box dimensions, see FGrammarPlacementHelpers::MakeBoxPlacement) are both
 	// meters. Converted to centimeters in ABuildingActor::ApplyBuildingSpec, the same

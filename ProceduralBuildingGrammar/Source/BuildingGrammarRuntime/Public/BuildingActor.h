@@ -37,20 +37,20 @@ public:
 	// Rebuilds this actor's hero-mesh components from Spec.HeroMeshes (destroying any from a
 	// previous call), and appends every Spec.Placements entry into Pool (if non-null). For each
 	// hero mesh, ResolveKitMesh is NOT used (hero surfaces are unique per-building DynamicMesh
-	// geometry, never a kit part) -- only ResolveMaterial(MeshSpec.Role, MeshSpec.Material,
-	// MeshSpec.Color) is called. For each placement, ResolveKitMesh(Role, VariantKey) resolves the
-	// shared kit mesh and ResolveMaterial(Placement.Role, Placement.VariantKey, Placement.Color)
-	// resolves its material (VariantKey doubles as the material name throughout the grammar
-	// engine's placement output -- see BuildingGrammarCore's GrammarPlacementHelpers.h). Pass
-	// FGrammarKitResolver::ResolveKitMesh/ResolveMaterial (BuildingGrammarGeometry) for the real
-	// implementation; either callback returning null is handled gracefully (no mesh/default
-	// material) rather than asserting, so callers can pass no-op lambdas to skip kit rendering
-	// entirely if desired.
+	// geometry, never a kit part) -- only ResolveMaterial(MeshSpec.StyleName, MeshSpec.Role,
+	// MeshSpec.Material, MeshSpec.Color) is called. For each placement, ResolveKitMesh(Role,
+	// VariantKey) resolves the shared kit mesh and ResolveMaterial(Placement.StyleName,
+	// Placement.Role, Placement.VariantKey, Placement.Color) resolves its material (VariantKey
+	// doubles as the material name throughout the grammar engine's placement output -- see
+	// BuildingGrammarCore's GrammarPlacementHelpers.h). Pass FGrammarKitResolver::ResolveKitMesh/
+	// ResolveMaterial (BuildingGrammarGeometry) for the real implementation; either callback
+	// returning null is handled gracefully (no mesh/default material) rather than asserting, so
+	// callers can pass no-op lambdas to skip kit rendering entirely if desired.
 	void ApplyBuildingSpec(
 		const FGrammarBuildingSpec& Spec,
 		ABuildingInstancePoolActor* Pool,
 		TFunctionRef<UStaticMesh* (const FString& Role, const FString& VariantKey)> ResolveKitMesh,
-		TFunctionRef<UMaterialInterface* (const FString& Role, const FString& MaterialName, const FLinearColor& Color)> ResolveMaterial);
+		TFunctionRef<UMaterialInterface* (const FString& StyleName, const FString& Role, const FString& MaterialName, const FLinearColor& Color)> ResolveMaterial);
 
 	// Assigns AActor's inherited World Partition RuntimeGrid property (a named grid must also be
 	// defined in the level's WP runtime hash settings for this to have any effect beyond the

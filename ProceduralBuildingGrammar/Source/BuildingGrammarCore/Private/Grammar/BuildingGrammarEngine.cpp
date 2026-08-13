@@ -46,6 +46,22 @@ namespace
 	{
 		return ((Value % Count) + Count) % Count;
 	}
+
+	// Stamps StyleName on every HeroMeshes/Placements entry added since (HeroMeshStart,
+	// PlacementStart) -- used at the end of each per-side/per-detail-group block below rather than
+	// annotating every individual generator call site, so StyleName threading stays contained to
+	// this one file (see FGrammarMeshSpec::StyleName's comment).
+	void StampStyleName(TArray<FGrammarMeshSpec>& HeroMeshes, int32 HeroMeshStart, TArray<FGrammarPlacementRecord>& Placements, int32 PlacementStart, const FString& StyleName)
+	{
+		for (int32 Index = HeroMeshStart; Index < HeroMeshes.Num(); ++Index)
+		{
+			HeroMeshes[Index].StyleName = StyleName;
+		}
+		for (int32 Index = PlacementStart; Index < Placements.Num(); ++Index)
+		{
+			Placements[Index].StyleName = StyleName;
+		}
+	}
 }
 
 bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footprint, const TMap<FString, FString>& Tags, const FBuildingGrammarConfig& Config, const FString& SourceName, FGrammarBuildingSpec& OutSpec, FString& OutError)
@@ -113,6 +129,9 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 	const TArray<FGrammarGeometry2D::FEdge> Segments = FGrammarGeometry2D::GetSegments(Clean);
 	for (int32 SideIndex = 0; SideIndex < Segments.Num(); ++SideIndex)
 	{
+		const int32 SideHeroMeshStart = HeroMeshes.Num();
+		const int32 SidePlacementStart = Placements.Num();
+
 		const FVector2D& Start = Segments[SideIndex].Start;
 		const FVector2D& End = Segments[SideIndex].End;
 		const FFacadeStyleConfig& Style = Styles[WrapIndex(SideIndex - StreetSideIndex, Styles.Num())];
@@ -181,16 +200,27 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 		}
 
 		Placements.Append(GrammarFacadeDepth::FacadeDepthPlacements(SideIndex, Start, End, Normal, StreetSideIndex, FloorHeights, TotalHeight, TagsTokens, Tags));
+
+		StampStyleName(HeroMeshes, SideHeroMeshStart, Placements, SidePlacementStart, Style.Name);
 	}
 
+	// Roof mesh/edge/gutter/general-detail placements all follow whichever style actually resolved
+	// the roof itself (the override style if one applies, else the building's primary style) --
+	// RoofServicePlacements/AntennaPlacements below use a separately stable-hash-selected
+	// DetailStyle instead, which can legitimately be a different style entry.
+	const int32 RoofHeroMeshStart = HeroMeshes.Num();
+	const int32 RoofPlacementStart = Placements.Num();
 	HeroMeshes.Add(GrammarRoof::RoofMesh(SourceName, Clean, TotalHeight, Roof, Tags));
 	Placements.Append(GrammarRoofDetails::RoofEdgePlacements(Clean, TotalHeight, Roof));
 	Placements.Append(GrammarRoofDetails::GutterPlacements(Clean, TotalHeight, Roof));
 	Placements.Append(GrammarRoofDetails::RoofDetailPlacements(Clean, TotalHeight, Roof, Tags));
+	StampStyleName(HeroMeshes, RoofHeroMeshStart, Placements, RoofPlacementStart, (RoofStyleOverride && RoofStyleOverride->bOverrideRoof) ? RoofStyleOverride->Name : PrimaryStyle.Name);
 
 	const FFacadeStyleConfig& DetailStyle = Styles[FGrammarStableHash::StableIndex(SourceName, Styles.Num())];
+	const int32 DetailPlacementStart = Placements.Num();
 	Placements.Append(GrammarRoofDetails::RoofServicePlacements(Clean, TotalHeight, Roof, DetailStyle, Tags));
 	Placements.Append(GrammarRoofDetails::AntennaPlacements(Clean, TotalHeight, Roof, DetailStyle));
+	StampStyleName(HeroMeshes, HeroMeshes.Num(), Placements, DetailPlacementStart, DetailStyle.Name);
 
 	OutSpec = FGrammarBuildingSpec();
 	OutSpec.SourceName = SourceName;

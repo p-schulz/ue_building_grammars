@@ -20,7 +20,7 @@ void ABuildingActor::ApplyBuildingSpec(
 	const FGrammarBuildingSpec& Spec,
 	ABuildingInstancePoolActor* Pool,
 	TFunctionRef<UStaticMesh* (const FString&, const FString&)> ResolveKitMesh,
-	TFunctionRef<UMaterialInterface* (const FString&, const FString&, const FLinearColor&)> ResolveMaterial)
+	TFunctionRef<UMaterialInterface* (const FString&, const FString&, const FString&, const FLinearColor&)> ResolveMaterial)
 {
 	for (UDynamicMeshComponent* Existing : HeroComponents)
 	{
@@ -47,7 +47,7 @@ void ABuildingActor::ApplyBuildingSpec(
 		Component->RegisterComponent();
 		Component->GetDynamicMesh()->SetMesh(MoveTemp(BuiltMesh));
 
-		if (UMaterialInterface* Material = ResolveMaterial(MeshSpec.Role, MeshSpec.Material, MeshSpec.Color))
+		if (UMaterialInterface* Material = ResolveMaterial(MeshSpec.StyleName, MeshSpec.Role, MeshSpec.Material, MeshSpec.Color))
 		{
 			Component->SetMaterial(0, Material);
 		}
@@ -73,7 +73,7 @@ void ABuildingActor::ApplyBuildingSpec(
 			// hence reusing it for both calls below.
 			if (UStaticMesh* KitMesh = ResolveKitMesh(Placement.Role, Placement.VariantKey))
 			{
-				UMaterialInterface* Material = ResolveMaterial(Placement.Role, Placement.VariantKey, Placement.Color);
+				UMaterialInterface* Material = ResolveMaterial(Placement.StyleName, Placement.Role, Placement.VariantKey, Placement.Color);
 
 				FTransform UnrealTransform = Placement.Transform;
 				UnrealTransform.SetLocation(Placement.Transform.GetLocation() * MetersToUnrealUnits);

@@ -1,181 +1,101 @@
 # Procedural Building Grammar
 
-An Unreal Engine 5.6 plugin that generates procedural buildings from OpenStreetMap footprints
-using facade and roof grammar rules, instanced across large areas via HISM so windows, ledges,
-roof tiles, and antennas stay cheap at city scale.
+Unreal Engine 5.8 plugin that generates procedural buildings from OpenStreetMap footprints using
+configurable facade and roof grammar rules, instanced for large-area performance.
 
 ## Features
 
-- **OSM ingestion** — XML parsing, multipolygon relation assembly, `building:part` parent/child
-  resolution, configurable-origin projection to world space.
-- **Full grammar engine** — walls, windows (frame/mullion/sill/shutter), doors (frame/handle/
-  canopy), ledges, balconies (rail/bar), flat/gabled/hipped/pyramid roofs with tiles, dormers, roof
-  windows, chimneys, gutters, parapet trim, 8 antenna types, street-level retail/industrial detail,
-  and facade pattern bands.
-- **Large-area performance** — repeated elements resolve to instance transforms for pooled
-  `HierarchicalInstancedStaticMeshComponent`s instead of unique per-instance geometry, using a
-  shared Nanite-enabled kit mesh baked (and cached) automatically on first use.
-- **Runtime streaming** — load an extract once, then stream buildings in and out by proximity to a
-  reference point (e.g. the player), cooperating with a level's native World Partition streaming
-  (if it has one) rather than running as an unrelated second system.
-- **Editor tool** — `Tools > Procedural Building Grammar > Generate Buildings from OSM...`.
-- **Style presets** — all 31 of the source add-on's facade styles are available: 25 ported directly
-  to C++ (including every style used by the 16 native building presets below), the rest loadable
-  from the add-on's own bundled JSON preset file (see JSON below). All 16 building presets
-  (`urban_block`, `modern_midrise`, `warehouse`, `church_cathedral`, `german_office`, ...) are
-  ported natively — see `GrammarBuildingPresets::AllBuildingPresets()`.
-- **JSON preset import/export** — reads and writes the source Blender add-on's own config schema
-  (snake_case field names, e.g. `wall_material`, `default_floor_height`) directly, so existing
-  exported presets load without any conversion step.
+- **OSM-driven generation** — parses `.osm` XML extracts, assembles building footprints (including
+  multipolygon relations and `building:part` sub-volumes), and projects them to a local metric
+  tangent plane around a configurable origin.
+- **Facade & roof grammar** — per-building floor counts, window/door/ledge/balcony placement, and
+  flat/gabled/hipped/pyramid roofs are derived from OSM tags and a configurable style set, with
+  optional tag-based overrides (`roof:shape`, `facade:material`, `facade:colour`, etc.).
+- **Street-aware roof alignment** — gabled and hipped ridges align to the nearest OSM street,
+  preferring the street named in a building's `addr:street` tag over pure proximity, with a
+  configurable search radius; falls back to the footprint's own longest edge otherwise.
+- **Instanced rendering** — every window, door, ledge, balcony, and roof detail across a whole
+  district batches into shared `UHierarchicalInstancedStaticMeshComponent` buckets, and every
+  building's wall/roof surfaces merge into one `UDynamicMeshComponent` per pool, instead of one
+  actor per building.
+- **Chunked, memory-bounded generation** — large extracts are split into grid cells, each spawning
+  its own pool actor; optional periodic save-and-reload keeps peak memory bounded regardless of
+  extract size, and requires World Partition.
+- **Static mesh baking** — any generated cell can be flattened into a single saved `UStaticMesh`
+  asset (with persistent per-color material variants), either during generation or afterward,
+  trading per-instance editability for reduced runtime actor/draw count.
+- **Post-import customization** — a viewport pick tool selects an individual building out of a
+  merged pool and exposes a details panel for per-building tag or facade-style overrides, which
+  regenerate just that building's cell in place.
+- **Runtime streaming** — `UBuildingStreamingSubsystem` loads an extract once and activates/evicts
+  grid cells by distance to a reference location, with optional World Partition streaming source
+  integration.
+- **16 built-in presets** covering urban blocks, modern midrise, retail, industrial, parking,
+  church/cathedral, and several German historical/postwar building styles, plus JSON import for
+  externally authored configs.
 
 ## Requirements
 
-- Unreal Engine 5.6
-- The engine's built-in **Geometry Script** plugin (declared as a dependency; enables
-  automatically with this plugin — no separate install).
+- Unreal Engine 5.8
+- World Partition–enabled level (only required for `bSaveAndUnloadPerCell` generation and the
+  runtime streaming subsystem's native WP integration; all other features work in any level)
 
 ## Installation
 
-1. Copy or clone this repository into `<YourProject>/Plugins/ProceduralBuildingGrammar/`.
-2. Regenerate project files (right-click your `.uproject` → *Generate Visual Studio project
-   files*, or run `UnrealBuildTool`/`RunUAT` directly on macOS/Linux).
-3. Open the project and build (the editor will prompt to compile missing modules on load).
-4. Confirm it's enabled under **Edit > Plugins**.
+Copy (or clone as a submodule) the `ProceduralBuildingGrammar` folder into your project's `Plugins/`
+directory, then enable it from the Unreal Editor's Plugins window (or add it to your `.uproject`'s
+plugin list) and restart the editor.
 
-## Usage
+## Getting Started
 
-### Editor
+1. Open **Tools > Procedural Building Grammar > Load Preset Config from JSON…** to load a facade/
+   roof style config (optional — a built-in urban block preset is used otherwise).
+2. Open **Tools > Procedural Building Grammar > Generate Buildings from OSM…** and select an `.osm`
+   extract. The projection origin is derived automatically from the extract's building footprints.
+3. For World Partition levels, you'll be prompted whether to save and periodically reload the level
+   to bound memory on large extracts, and whether to bake each cell to a static mesh immediately.
+4. Use **Bake Generated Buildings to Static Meshes…** to flatten existing pool actors afterward, and
+   **Pick Building** to select and customize individual buildings in already-generated cells.
 
-**Tools > Procedural Building Grammar:**
-- **Load Preset Config from JSON...** — load a facade/roof preset config exported from the source
-  Blender add-on (or written by this plugin). Used by the command below once loaded.
-- **Generate Buildings from OSM...** — pick a `.osm` file and buildings are generated into the
-  currently open level, using whichever config was most recently loaded (or the built-in
-  `urban_block` preset if none has been). A projection origin is derived automatically from the
-  file's own bounding box.
-
-### Blueprint / C++
+### From code
 
 ```cpp
 ABuildingInstancePoolActor* Pool = nullptr;
 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
-    this, TEXT("C:/data/city.osm"), OriginLatitude, OriginLongitude, Config, Pool);
+    this, TEXT("C:/Extracts/district.osm"),
+    OriginLatitude, OriginLongitude,
+    GrammarBuildingPresets::UrbanBlockConfig(),
+    Pool);
 ```
 
-### Loading/saving presets
+For large extracts, use `GenerateBuildingsFromOsmFileChunked` instead, which splits generation into
+grid cells and supports memory-bounded save/reload and per-cell static mesh baking. For runtime,
+distance-driven streaming, use `UBuildingStreamingSubsystem::LoadOsmExtract` and
+`SetReferenceLocation`.
 
-```cpp
-FBuildingGrammarConfig Config;
-FString Error;
-FGrammarConfigJson::LoadConfigFromPythonJsonFile(TEXT("C:/data/my_presets.json"), Config, Error);
+## Configuration
 
-// ...edit Config.Styles, Config.Roof, etc...
+`FBuildingGrammarConfig` controls building-part handling, level/floor-height inference, facade
+styles, roof shape/material/alignment, and excluded `building=*` values. Configs can be authored as
+native `FBuildingGrammarConfig` JSON, or loaded from the Blender add-on's own snake_case preset
+schema (see the bundled `Content/german_building_grammar_config.json` for an example covering 25
+facade styles).
 
-FGrammarConfigJson::SaveConfigToPythonJsonFile(TEXT("C:/data/my_presets.json"), Config, Error);
-```
+## Module Layout
 
-### Runtime streaming
+| Module | Type | Purpose |
+| --- | --- | --- |
+| `BuildingGrammarCore` | Runtime | OSM parsing, footprint assembly, grammar rules, config, presets — no Unreal geometry/rendering types |
+| `BuildingGrammarGeometry` | Runtime | Converts grammar output into `FDynamicMesh3` geometry and resolves/bakes shared kit meshes and materials |
+| `BuildingGrammarRuntime` | Runtime | Instance pool actors, generation entry points, streaming subsystem, static mesh baking, World Partition persistence |
+| `BuildingGrammarEditor` | Editor | Tools-menu commands and the building pick tool |
 
-```cpp
-UBuildingStreamingSubsystem* Streaming = GetWorld()->GetSubsystem<UBuildingStreamingSubsystem>();
-Streaming->LoadOsmExtract(OsmFilePath, OriginLatitude, OriginLongitude, Config);
-Streaming->SetReferenceLocation(PlayerPawn->GetActorLocation()); // call again as the player moves
-```
+## Packaging for a Shipped Build
 
-## World Partition integration
+Kit meshes and materials are baked into saved assets the first time generation runs in-editor.
+Run generation at least once in-editor (and keep the resulting content) before packaging, since
+these assets are only ever *loaded* at runtime, never created outside the editor.
 
-This plugin's own proximity streaming (`UBuildingStreamingSubsystem`, above) is an independent
-grid — it doesn't know about a level's World Partition cells by default. Two pieces connect the
-two systems instead of leaving them uncoordinated:
+## License
 
-- **Shared streaming source.** `UBuildingStreamingSubsystem` implements
-  `IWorldPartitionStreamingSourceProvider` and self-registers with the level's
-  `UWorldPartitionSubsystem` on `Initialize()` (a harmless no-op if the level has no World
-  Partition). Every `SetReferenceLocation(...)` call feeds that same point to WP's own native
-  streaming, so a level that combines WP-managed static content with this plugin's
-  dynamically-streamed buildings gets consistent behavior from one reference point instead of two
-  systems reacting independently.
-- **Runtime grid assignment.** `ABuildingActor`/`ABuildingInstancePoolActor` expose
-  `SetBuildingRuntimeGrid(FName)`, which sets the actor's inherited World Partition `RuntimeGrid`
-  property. This only matters for buildings **generated in-editor and saved as part of the level**
-  (World Partition doesn't manage actors spawned purely at runtime, regardless of this property) —
-  pass a grid name through `GenerateBuildingsFromOsmFile`'s optional `RuntimeGridName` parameter to
-  assign editor-baked buildings to a specific named grid (which must also be defined in the level's
-  WP runtime hash settings — this plugin doesn't create grid definitions, only assigns actors to
-  one by name):
-
-  ```cpp
-  UBuildingGenerationLibrary::GenerateBuildingsFromOsmFile(
-      this, OsmFilePath, OriginLatitude, OriginLongitude, Config, Pool, TEXT("Buildings"));
-  ```
-
-**Not implemented:** Data Layer assignment. The Data Layer C++ API has changed shape more than
-once across UE5 versions and wasn't confident enough to include without being able to compile
-against it — a documented gap, not a silent one.
-
-## Packaging for a shipped (non-editor) build
-
-Instanced elements (windows, doors, roof tiles, balconies, antennas, ...) render using a shared
-kit mesh and material that are **baked once, automatically, the first time generation runs inside
-the editor** (`FGrammarKitAssetBuilder`, `BuildingGrammarGeometry`), and saved as real assets
-under:
-
-```
-/ProceduralBuildingGrammar/Kits/SM_GrammarUnitBox   (Nanite unit-box static mesh)
-/ProceduralBuildingGrammar/Kits/M_GrammarKit        (master material)
-```
-
-Baking new assets is only possible inside the editor — a packaged game can only *load* assets that
-already exist, it can't create them. So, before packaging any level that uses this plugin:
-
-1. Open the level in the editor and run generation at least once (**Tools > Procedural Building
-   Grammar > Generate Buildings from OSM...**, or call `UBuildingGenerationLibrary::
-   GenerateBuildingsFromOsmFile` / `UBuildingStreamingSubsystem::LoadOsmExtract` from
-   editor/PIE code) so the two assets above get baked and saved to disk.
-2. Confirm they exist in the Content Browser under `ProceduralBuildingGrammar > Kits`.
-3. Package normally. Once those assets exist and are referenced by placed
-   `HierarchicalInstancedStaticMeshComponent`s, the cooker picks them up like any other referenced
-   content — no special cook rules needed.
-
-If you skip step 1 (e.g. buildings are only ever generated at runtime in the shipped game, never
-in-editor first), `FGrammarKitResolver::ResolveKitMesh`/`ResolveMaterial` will find nothing to
-load, log a warning, and return `nullptr` — generation still completes and hero geometry (facade
-walls, roof planes) still renders, but every instanced element is silently skipped rather than
-crashing.
-
-## Status & Roadmap
-
-| Module | Status |
-|---|---|
-| `BuildingGrammarCore` | Complete — OSM ingestion, config model, full grammar engine |
-| `BuildingGrammarGeometry` | Hero mesh → `FDynamicMesh3` builder done; Nanite kit baking (unit-box mesh + master material) done; per-style/per-dimension kit variants not yet split out (every role currently shares one mesh, scaled per instance) |
-| `BuildingGrammarRuntime` | Generation + proximity streaming + World Partition streaming-source/RuntimeGrid integration complete; async generation, per-actor recentering, and Data Layer assignment not implemented |
-| `BuildingGrammarEditor` | v1 menu commands (generate + JSON preset load) done; no in-editor property picker UI yet |
-| Style presets | All 31 facade styles reachable (25 native C++, 6 more via JSON import); all 16 full building presets ported natively |
-
-Every generated element now has real geometry: instanced elements (windows, doors, roof tiles,
-balconies, antennas, ...) render as a shared, non-uniformly-scaled unit box tinted per material via
-a dynamic material instance — not their true per-element shape yet (a window and a roof tile both
-render as boxes sized to the right dimensions, not their distinct silhouettes), but no longer
-invisible. See "Packaging for a shipped build" above for the one-time in-editor step this requires.
-
-
-## Architecture
-
-```
-ProceduralBuildingGrammar.uplugin
-Source/
-├── BuildingGrammarCore/            OSM ingestion, grammar config, grammar engine, presets, JSON I/O
-├── BuildingGrammarGeometry/        FMeshSpec -> FDynamicMesh3 / Nanite kit baking
-├── BuildingGrammarRuntime/         Actors, HISM instance pools, streaming subsystem
-└── BuildingGrammarEditor/          Level Editor menu tooling
-Content/                            (empty at rest -- kit mesh/material are baked into
-                                     /ProceduralBuildingGrammar/Kits/ the first time you generate)
-```
-
-Two independent JSON formats exist by design: `FBuildingGrammarConfig::ToJsonString`/
-`FromJsonString` round-trip this plugin's own `PascalCase` `UPROPERTY` names, while
-`FGrammarConfigJson` reads and writes the source Blender add-on's `snake_case` schema. Use the
-latter to exchange presets with the add-on; the former is only useful for round-tripping within
-this plugin itself.
-
+No license file is currently included; treat as all rights reserved unless a license is added.

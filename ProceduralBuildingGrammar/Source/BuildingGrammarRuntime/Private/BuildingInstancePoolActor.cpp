@@ -51,7 +51,7 @@ FString ABuildingInstancePoolActor::MakeBucketKey(const FString& Role, const FSt
 	return Role + TEXT("|") + VariantKey;
 }
 
-void ABuildingInstancePoolActor::AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh, UMaterialInterface* Material, FLinearColor MaterialColor)
+void ABuildingInstancePoolActor::AddInstance(const FString& RoleTag, const FString& VariantKey, const FTransform& Transform, UStaticMesh* Mesh, UMaterialInterface* Material, FLinearColor MaterialColor, FString StyleName)
 {
 	if (!Mesh)
 	{
@@ -71,7 +71,7 @@ void ABuildingInstancePoolActor::AddInstance(const FString& RoleTag, const FStri
 			Bucket->SetMaterial(0, Material);
 			// VariantKey doubles as the material name (see GrammarPlacementHelpers.h) -- see
 			// FBuildingMaterialResolveKey's comment for why this is recorded at all.
-			BucketMaterialKeys.Add(BucketKey, FBuildingMaterialResolveKey{ RoleTag, VariantKey, MaterialColor });
+			BucketMaterialKeys.Add(BucketKey, FBuildingMaterialResolveKey{ StyleName, RoleTag, VariantKey, MaterialColor });
 		}
 		Bucket->SetMobility(EComponentMobility::Static);
 		Bucket->SetupAttachment(GetRootComponent());
@@ -96,7 +96,7 @@ void ABuildingInstancePoolActor::ClearAllInstances()
 void ABuildingInstancePoolActor::ApplyBuildingSpec(
 	const FGrammarBuildingSpec& Spec,
 	TFunctionRef<UStaticMesh* (const FString&, const FString&)> ResolveKitMesh,
-	TFunctionRef<UMaterialInterface* (const FString&, const FString&, const FLinearColor&)> ResolveMaterial)
+	TFunctionRef<UMaterialInterface* (const FString&, const FString&, const FString&, const FLinearColor&)> ResolveMaterial)
 {
 	for (const FGrammarMeshSpec& MeshSpec : Spec.HeroMeshes)
 	{
@@ -109,7 +109,7 @@ void ABuildingInstancePoolActor::ApplyBuildingSpec(
 		// working unit) into UE centimeters -- see its own header/implementation comment.
 		UE::Geometry::FDynamicMesh3 BuiltMesh;
 		FGrammarDynamicMeshBuilder::BuildDynamicMesh(MeshSpec, BuiltMesh);
-		AppendHeroMesh(BuiltMesh, ResolveMaterial(MeshSpec.Role, MeshSpec.Material, MeshSpec.Color), MeshSpec.Role, MeshSpec.Material, MeshSpec.Color);
+		AppendHeroMesh(BuiltMesh, ResolveMaterial(MeshSpec.StyleName, MeshSpec.Role, MeshSpec.Material, MeshSpec.Color), MeshSpec.StyleName, MeshSpec.Role, MeshSpec.Material, MeshSpec.Color);
 	}
 
 	// Placement.Transform's Location and Scale are still in BuildingGrammarCore's working unit
@@ -125,18 +125,18 @@ void ABuildingInstancePoolActor::ApplyBuildingSpec(
 		// it for both calls below.
 		if (UStaticMesh* KitMesh = ResolveKitMesh(Placement.Role, Placement.VariantKey))
 		{
-			UMaterialInterface* Material = ResolveMaterial(Placement.Role, Placement.VariantKey, Placement.Color);
+			UMaterialInterface* Material = ResolveMaterial(Placement.StyleName, Placement.Role, Placement.VariantKey, Placement.Color);
 
 			FTransform UnrealTransform = Placement.Transform;
 			UnrealTransform.SetLocation(Placement.Transform.GetLocation() * MetersToUnrealUnits);
 			UnrealTransform.SetScale3D(Placement.Transform.GetScale3D() * MetersToUnrealUnits);
 
-			AddInstance(Placement.Role, Placement.VariantKey, UnrealTransform, KitMesh, Material, Placement.Color);
+			AddInstance(Placement.Role, Placement.VariantKey, UnrealTransform, KitMesh, Material, Placement.Color, Placement.StyleName);
 		}
 	}
 }
 
-void ABuildingInstancePoolActor::AppendHeroMesh(const UE::Geometry::FDynamicMesh3& BuiltMesh, UMaterialInterface* Material, const FString& RoleTag, const FString& MaterialName, const FLinearColor& Color)
+void ABuildingInstancePoolActor::AppendHeroMesh(const UE::Geometry::FDynamicMesh3& BuiltMesh, UMaterialInterface* Material, const FString& StyleName, const FString& RoleTag, const FString& MaterialName, const FLinearColor& Color)
 {
 	if (BuiltMesh.TriangleCount() == 0)
 	{
@@ -165,7 +165,7 @@ void ABuildingInstancePoolActor::AppendHeroMesh(const UE::Geometry::FDynamicMesh
 		if (MaterialSlot == INDEX_NONE)
 		{
 			MaterialSlot = HeroMaterials.Add(Material);
-			HeroMaterialKeys.Add(FBuildingMaterialResolveKey{ RoleTag, MaterialName, Color });
+			HeroMaterialKeys.Add(FBuildingMaterialResolveKey{ StyleName, RoleTag, MaterialName, Color });
 
 			TArray<UMaterialInterface*> RawMaterials;
 			RawMaterials.Reserve(HeroMaterials.Num());
@@ -288,13 +288,10 @@ void ABuildingInstancePoolActor::PostLoad()
 {
 	Super::PostLoad();
 
-	// See FBuildingMaterialResolveKey's comment: every material reference on this actor's
-	// components is a runtime UMaterialInstanceDynamic that does not survive being saved as part of
-	// this actor's own external package (Outer=GetTransientPackage(), RF_Transient -- see
-	// FGrammarKitResolver::ResolveMaterial) -- comes back null after a reload. Re-resolve (cheap:
-	// ResolveMaterial caches by (Role, MaterialName) and only recreates the MID if the cache entry
-	// itself didn't survive either) and reassign every one from the plain FString/FLinearColor data
-	// that DOES survive.
+	// See FBuildingMaterialResolveKey's comment -- this is a technically-redundant safety net now
+	// that ResolveMaterial returns persistent assets, kept for cheap idempotent re-resolution
+	// (ResolveMaterial caches by (StyleName, Role, MaterialName)) rather than risking a subtler
+	// removal.
 	for (const TPair<FString, FBuildingMaterialResolveKey>& Entry : BucketMaterialKeys)
 	{
 		TObjectPtr<UHierarchicalInstancedStaticMeshComponent>* Bucket = Buckets.Find(Entry.Key);
@@ -303,7 +300,7 @@ void ABuildingInstancePoolActor::PostLoad()
 			continue;
 		}
 		const FBuildingMaterialResolveKey& Key = Entry.Value;
-		if (UMaterialInterface* Material = FGrammarKitResolver::ResolveMaterial(Key.Role, Key.MaterialName, Key.Color))
+		if (UMaterialInterface* Material = FGrammarKitResolver::ResolveMaterial(Key.StyleName, Key.Role, Key.MaterialName, Key.Color))
 		{
 			Bucket->Get()->SetMaterial(0, Material);
 		}
@@ -316,7 +313,7 @@ void ABuildingInstancePoolActor::PostLoad()
 		for (int32 Index = 0; Index < HeroMaterialKeys.Num(); ++Index)
 		{
 			const FBuildingMaterialResolveKey& Key = HeroMaterialKeys[Index];
-			UMaterialInterface* Material = FGrammarKitResolver::ResolveMaterial(Key.Role, Key.MaterialName, Key.Color);
+			UMaterialInterface* Material = FGrammarKitResolver::ResolveMaterial(Key.StyleName, Key.Role, Key.MaterialName, Key.Color);
 			if (HeroMaterials.IsValidIndex(Index))
 			{
 				HeroMaterials[Index] = Material;
@@ -409,7 +406,7 @@ FBuildingBakeExtractedData ABuildingInstancePoolActor::ExtractBakeData() const
 		UMaterialInterface* BakedMaterial = nullptr;
 		if (const FBuildingMaterialResolveKey* Key = BucketMaterialKeys.Find(BucketPair.Key))
 		{
-			BakedMaterial = FGrammarKitAssetBuilder::GetOrCreateColorVariant(Key->Role, Key->MaterialName, Key->Color);
+			BakedMaterial = FGrammarKitAssetBuilder::GetOrCreateColorVariant(Key->StyleName, Key->Role, Key->MaterialName, Key->Color);
 		}
 
 		FBuildingBakeExtractedData::FBucketInstances BucketInstances;
@@ -433,7 +430,7 @@ FBuildingBakeExtractedData ABuildingInstancePoolActor::ExtractBakeData() const
 		Data.HeroSlotToBakedSlot.Reserve(HeroMaterialKeys.Num());
 		for (const FBuildingMaterialResolveKey& Key : HeroMaterialKeys)
 		{
-			UMaterialInterface* BakedMaterial = FGrammarKitAssetBuilder::GetOrCreateColorVariant(Key.Role, Key.MaterialName, Key.Color);
+			UMaterialInterface* BakedMaterial = FGrammarKitAssetBuilder::GetOrCreateColorVariant(Key.StyleName, Key.Role, Key.MaterialName, Key.Color);
 			Data.HeroSlotToBakedSlot.Add(FindOrAddMaterialSlot(BakedMaterial));
 		}
 

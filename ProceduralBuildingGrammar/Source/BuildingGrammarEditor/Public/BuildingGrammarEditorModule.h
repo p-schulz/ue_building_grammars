@@ -29,6 +29,11 @@ private:
 	void OnBakeToStaticMeshClicked();
 	void OnPickBuildingClicked();
 
+	// Alternative to OnGenerateFromOsmClicked: drives the BuildingGrammarPCG module's PCG-graph-based
+	// pipeline instead of the deterministic C++ engine. Reuses the same file-picker UX; sets the
+	// picked file as the target UPCGComponent's "OsmFilePath" Graph Parameter and triggers Generate.
+	void OnGeneratePCGClicked();
+
 	// Bound to FBuildingPickEdMode::OnBuildingPicked -- shows/refreshes the floating customization
 	// details panel for the just-picked building (see BuildingPickPanelData.h).
 	void HandleBuildingPicked(ABuildingInstancePoolActor* Pool, const FString& SourceName);
