@@ -5222,9 +5222,7 @@
         ],
         "historic": [
           "church",
-          "cathedral",
-          "yes",
-          "*"
+          "cathedral"
         ]
       },
       "default_levels": 5,
@@ -7624,9 +7622,6 @@
         "building": [
           "palace",
           "castle"
-        ],
-        "tourism": [
-          "attraction"
         ]
       },
       "default_levels": 3,
@@ -7893,8 +7888,7 @@
       "tag_filters": {
         "building": [
           "villa",
-          "manor",
-          "residential"
+          "manor"
         ],
         "historic": [
           "manor",
@@ -8150,9 +8144,6 @@
         "building": [
           "castle",
           "fortress"
-        ],
-        "tourism": [
-          "attraction"
         ]
       },
       "default_levels": 4,
