@@ -324,6 +324,7 @@ FWindowStyleConfig FGrammarConfigJson::WindowFromJsonObject(const TSharedPtr<FJs
 	Window.Spacing = GetNum(JsonObject, TEXT("spacing"), 2.7);
 	Window.MinMargin = GetNum(JsonObject, TEXT("min_margin"), 0.8);
 	Window.Depth = GetNum(JsonObject, TEXT("depth"), 0.04);
+	Window.RecessDepth = GetNum(JsonObject, TEXT("recess_depth"), 0.10);
 	Window.Material = GetStr(JsonObject, TEXT("material"), TEXT("Grammar Glass"));
 	Window.Color = GetColor(JsonObject, TEXT("color"), FLinearColor(0.12, 0.22, 0.32, 1.0));
 	Window.TexturePath = GetOptionalStr(JsonObject, TEXT("texture_path"));
@@ -350,6 +351,7 @@ TSharedRef<FJsonObject> FGrammarConfigJson::WindowToJsonObject(const FWindowStyl
 	Obj->SetNumberField(TEXT("spacing"), Window.Spacing);
 	Obj->SetNumberField(TEXT("min_margin"), Window.MinMargin);
 	Obj->SetNumberField(TEXT("depth"), Window.Depth);
+	Obj->SetNumberField(TEXT("recess_depth"), Window.RecessDepth);
 	Obj->SetStringField(TEXT("material"), Window.Material);
 	Obj->SetArrayField(TEXT("color"), ColorToJsonArray(Window.Color));
 	if (Window.TexturePath.IsEmpty()) Obj->SetField(TEXT("texture_path"), MakeShared<FJsonValueNull>()); else Obj->SetStringField(TEXT("texture_path"), Window.TexturePath);
@@ -451,6 +453,7 @@ FDoorStyleConfig FGrammarConfigJson::DoorFromJsonObject(const TSharedPtr<FJsonOb
 	Door.Width = GetNum(JsonObject, TEXT("width"), 1.25);
 	Door.Height = GetNum(JsonObject, TEXT("height"), 2.25);
 	Door.Depth = GetNum(JsonObject, TEXT("depth"), 0.08);
+	Door.RecessDepth = GetNum(JsonObject, TEXT("recess_depth"), 0.05);
 	Door.Material = GetStr(JsonObject, TEXT("material"), TEXT("Grammar Door"));
 	Door.Color = GetColor(JsonObject, TEXT("color"), FLinearColor(0.16, 0.1, 0.06, 1.0));
 	Door.TexturePath = GetOptionalStr(JsonObject, TEXT("texture_path"));
@@ -480,6 +483,7 @@ TSharedRef<FJsonObject> FGrammarConfigJson::DoorToJsonObject(const FDoorStyleCon
 	Obj->SetNumberField(TEXT("width"), Door.Width);
 	Obj->SetNumberField(TEXT("height"), Door.Height);
 	Obj->SetNumberField(TEXT("depth"), Door.Depth);
+	Obj->SetNumberField(TEXT("recess_depth"), Door.RecessDepth);
 	Obj->SetStringField(TEXT("material"), Door.Material);
 	Obj->SetArrayField(TEXT("color"), ColorToJsonArray(Door.Color));
 	if (Door.TexturePath.IsEmpty()) Obj->SetField(TEXT("texture_path"), MakeShared<FJsonValueNull>()); else Obj->SetStringField(TEXT("texture_path"), Door.TexturePath);

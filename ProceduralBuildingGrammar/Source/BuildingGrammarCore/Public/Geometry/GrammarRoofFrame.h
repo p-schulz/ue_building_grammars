@@ -28,9 +28,11 @@ struct BUILDINGGRAMMARCORE_API FGrammarRoofFrame
 class BUILDINGGRAMMARCORE_API FGrammarRoofFrameMath
 {
 public:
-	// Pushes each footprint vertex radially outward from the 2D centroid by Overhang (a radial,
-	// not per-edge, offset -- can distort non-convex/irregular footprints, matching
-	// _roof_base_vertices exactly). Height becomes every output vertex's Z.
+	// Offsets the footprint outward by Overhang via a per-vertex miter join (each vertex pushed
+	// along the bisector of its two adjacent edges' outward normals) -- correct for non-convex
+	// (L-shaped) footprints, unlike a simpler radial-from-centroid push. Height becomes every
+	// output vertex's Z. See the .cpp for the full construction and its known limits (no
+	// self-intersection clipping for extreme reflex corners).
 	static TArray<FVector> RoofBaseVertices(const TArray<FVector2D>& Footprint, double Height, double Overhang);
 
 	// Normalizes Direction (falling back to the base's longest AABB axis if zero-length), derives

@@ -6,12 +6,6 @@
 
 namespace
 {
-	void ComputeWindowVerticalExtent(const FWindowStyleConfig& Window, double FloorHeight, double& OutHeight, double& OutBottomOffset)
-	{
-		OutHeight = FMath::Min(Window.Height, FMath::Max(0.2, FloorHeight - Window.SillHeight - 0.25));
-		OutBottomOffset = FMath::Min(Window.SillHeight, FMath::Max(0.15, FloorHeight - OutHeight - 0.15));
-	}
-
 	// Port of grammar.py's _window_panel_mesh, retargeted to emit a placement instead of a flat
 	// quad's 4 vertices -- see GrammarPlacementHelpers.h.
 	FGrammarPlacementRecord PanelPlacement(const FString& Role, const FString& VariantKey, const FVector2D& Start, const FVector2D& Tangent, const FVector2D& Normal, double CenterOffset, double Width, double Bottom, double Height, double Depth, const FLinearColor& Color)
@@ -30,6 +24,12 @@ namespace
 
 namespace GrammarWallWindow
 {
+	void WindowVerticalExtent(const FWindowStyleConfig& Window, double FloorHeight, double& OutHeight, double& OutBottomOffset)
+	{
+		OutHeight = FMath::Min(Window.Height, FMath::Max(0.2, FloorHeight - Window.SillHeight - 0.25));
+		OutBottomOffset = FMath::Min(Window.SillHeight, FMath::Max(0.15, FloorHeight - OutHeight - 0.15));
+	}
+
 	TArray<double> WindowOffsets(double Length, double Width, double Spacing, double Margin)
 	{
 		const double Usable = Length - Margin * 2.0;
@@ -50,7 +50,24 @@ namespace GrammarWallWindow
 		return Offsets;
 	}
 
-	FGrammarMeshSpec WallMesh(const FString& MeshSourceName, int32 SideIndex, const FVector2D& Start, const FVector2D& End, double Height, const FFacadeStyleConfig& Style, const FString& SourceName)
+	namespace
+	{
+		// Appends one FGrammarWallQuad as 4 vertices + one CCW face -- shared tail for WallMesh/
+		// WallRowMesh below, which otherwise only differ in how many quads FGrammarWallRecess::
+		// BuildSegments returns (1, with no Openings, vs. potentially many once a window/door
+		// recesses the wall).
+		void AppendWallQuadToMesh(FGrammarMeshSpec& Mesh, const FGrammarWallQuad& Quad)
+		{
+			const int32 Base = Mesh.Vertices.Num();
+			Mesh.Vertices.Add(Quad.Corners[0]);
+			Mesh.Vertices.Add(Quad.Corners[1]);
+			Mesh.Vertices.Add(Quad.Corners[2]);
+			Mesh.Vertices.Add(Quad.Corners[3]);
+			Mesh.Faces.Add(FGrammarFace({ Base, Base + 1, Base + 2, Base + 3 }));
+		}
+	}
+
+	FGrammarMeshSpec WallMesh(const FString& MeshSourceName, int32 SideIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double Height, const FFacadeStyleConfig& Style, const FString& SourceName, const TArray<FGrammarWallOpening>& Openings)
 	{
 		const TPair<int32, FLinearColor> ColorResult = GrammarEngineInternal::VariantWallColor(Style, SourceName, SideIndex);
 
@@ -60,18 +77,15 @@ namespace GrammarWallWindow
 		Mesh.Material = GrammarEngineInternal::WallMaterialName(Style.WallMaterial, TEXT("variant"), ColorResult.Key);
 		Mesh.Color = ColorResult.Value;
 		Mesh.TexturePath = Style.WallTexturePath;
-		Mesh.Vertices = {
-			FVector(Start.X, Start.Y, 0.0),
-			FVector(End.X, End.Y, 0.0),
-			FVector(End.X, End.Y, Height),
-			FVector(Start.X, Start.Y, Height)
-		};
-		Mesh.Faces = { FGrammarFace({ 0, 1, 2, 3 }) };
+		for (const FGrammarWallQuad& Quad : FGrammarWallRecess::BuildSegments(Start, End, Normal, 0.0, Height, Openings))
+		{
+			AppendWallQuadToMesh(Mesh, Quad);
+		}
 		Mesh.TextureScale = Style.WallTextureScale;
 		return Mesh;
 	}
 
-	FGrammarMeshSpec WallRowMesh(const FString& SourceName, int32 SideIndex, int32 FloorIndex, const FVector2D& Start, const FVector2D& End, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style)
+	FGrammarMeshSpec WallRowMesh(const FString& SourceName, int32 SideIndex, int32 FloorIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double FloorBottom, double FloorHeight, const FFacadeStyleConfig& Style, const TArray<FGrammarWallOpening>& Openings)
 	{
 		const TPair<int32, FLinearColor> ColorResult = GrammarEngineInternal::RowWallColor(Style, FloorIndex);
 
@@ -81,13 +95,10 @@ namespace GrammarWallWindow
 		Mesh.Material = GrammarEngineInternal::WallMaterialName(Style.WallMaterial, TEXT("row"), ColorResult.Key);
 		Mesh.Color = ColorResult.Value;
 		Mesh.TexturePath = Style.WallTexturePath;
-		Mesh.Vertices = {
-			FVector(Start.X, Start.Y, FloorBottom),
-			FVector(End.X, End.Y, FloorBottom),
-			FVector(End.X, End.Y, FloorBottom + FloorHeight),
-			FVector(Start.X, Start.Y, FloorBottom + FloorHeight)
-		};
-		Mesh.Faces = { FGrammarFace({ 0, 1, 2, 3 }) };
+		for (const FGrammarWallQuad& Quad : FGrammarWallRecess::BuildSegments(Start, End, Normal, FloorBottom, FloorBottom + FloorHeight, Openings))
+		{
+			AppendWallQuadToMesh(Mesh, Quad);
+		}
 		Mesh.TextureScale = Style.WallTextureScale;
 		return Mesh;
 	}
@@ -98,11 +109,11 @@ namespace GrammarWallWindow
 		const FWindowStyleConfig& Window = Style.Window;
 
 		double Height, BottomOffset;
-		ComputeWindowVerticalExtent(Window, FloorHeight, Height, BottomOffset);
+		WindowVerticalExtent(Window, FloorHeight, Height, BottomOffset);
 		const double Bottom = FloorBottom + BottomOffset;
 
 		FGrammarBoxPlacementParams Params;
-		Params.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Window.Depth);
+		Params.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Window.Depth - Window.RecessDepth);
 		Params.Tangent = Tangent;
 		Params.Normal = Normal;
 		Params.Width = Window.Width;
@@ -119,9 +130,9 @@ namespace GrammarWallWindow
 		const double FrameWidth = FMath::Max(Window.FrameWidth, 0.0);
 
 		double Height, BottomOffset;
-		ComputeWindowVerticalExtent(Window, FloorHeight, Height, BottomOffset);
+		WindowVerticalExtent(Window, FloorHeight, Height, BottomOffset);
 		const double Bottom = FloorBottom + BottomOffset;
-		const double Depth = Window.Depth + FMath::Max(Window.FrameDepth, 0.0);
+		const double Depth = Window.Depth + FMath::Max(Window.FrameDepth, 0.0) - Window.RecessDepth;
 
 		TArray<FGrammarPlacementRecord> Result;
 
@@ -159,7 +170,7 @@ namespace GrammarWallWindow
 		if (Window.SillDepth > 0.0 && Window.SillThickness > 0.0)
 		{
 			FGrammarBoxPlacementParams SillParams;
-			SillParams.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Window.SillDepth / 2.0);
+			SillParams.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Window.SillDepth / 2.0 - Window.RecessDepth);
 			SillParams.Tangent = Tangent;
 			SillParams.Normal = Normal;
 			SillParams.Width = Window.Width + FrameWidth * 2.5;

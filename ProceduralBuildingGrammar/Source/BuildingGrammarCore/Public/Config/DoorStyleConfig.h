@@ -35,6 +35,12 @@ struct BUILDINGGRAMMARCORE_API FDoorStyleConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Door")
 	double Depth = 0.08;
 
+	// How far the wall itself recesses inward around this door (the reveal) before the door's own
+	// Depth/FrameWidth/etc. are measured from that recessed plane -- see GrammarWallRecess.h. 0 keeps
+	// the wall flat (today's behavior) with the door flush against it.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Door")
+	double RecessDepth = 0.05;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Door")
 	FString Material = TEXT("Grammar Door");
 

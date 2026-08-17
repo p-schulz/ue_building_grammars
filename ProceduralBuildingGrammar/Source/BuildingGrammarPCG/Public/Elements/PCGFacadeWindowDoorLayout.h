@@ -10,8 +10,16 @@
 // takes per-edge points (UPCGExtrudeFootprintToWallsSettings' "Edges" output: one UPCGPointData per
 // building, one point per wall edge, Transform's local +X = edge tangent/+Y = outward normal/+Z =
 // up, "Length"/"EdgeIndex" attributes) and lays out evenly spaced window placements along every
-// edge, plus one door centered on whichever edge is longest (a self-contained Phase-A heuristic --
-// wiring in real street-facing data from UPCGGetStreetNetworkSettings is a Phase B follow-up).
+// edge, plus a door wherever FDoorStyleConfig::Placement (StreetFacing/EachFacade/None -- see
+// StyleInfo's own DoorPlacement attribute below) says one belongs -- port of
+// GrammarEngineInternal::DoorApplies/WindowOverlapsDoor (GrammarEngineInternal.cpp:434-455): a
+// StreetFacing door only goes on the real street-facing edge (DetermineStreetFacingSideIndex,
+// PCGBuildingGrammarDefaults.h -- shared with UPCGFacadePatternStreetDetailLayoutSettings' own
+// street-facing detection), an EachFacade door goes on every qualifying edge, and any floor-0 window
+// that would overlap a placed door on its own edge is skipped (clearance =
+// (Window.Width+Door.Width)/2 + max(Door.FrameWidth,0)). The `grammar:disable_ground_entrance` OSM
+// tag (read from the optional "BuildingInfo" pin's TagsJson) hard-disables a door regardless of
+// Placement, same as classic.
 //
 // Consumes every point-data entry on its Edges pin independently, preserving tags, same as
 // UPCGExtrudeFootprintToWallsSettings.
@@ -132,6 +140,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Window|Sill", meta = (PCG_Overridable))
 	double WindowSillThickness = 6.0;
 
+	// Fallback whenever StyleInfo is unconnected or has no row for a building (no Settings-level way
+	// to express EachFacade -- see this class's header comment for why that's an acceptable
+	// limitation, same as Ledge/Balcony/Shutter having no Settings fallback either): true resolves to
+	// DoorPlacement=StreetFacing (a door on the real street-facing edge only), false to
+	// DoorPlacement=None.
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Door", meta = (PCG_Overridable))
 	bool bAddDoorOnLongestEdge = true;
 
@@ -143,6 +156,13 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Door", meta = (PCG_Overridable, EditCondition = "bAddDoorOnLongestEdge"))
 	double DoorDepth = 10.0;
+
+	// Maximum distance (UE centimeters) from a building edge to the nearest real street before that
+	// street is ignored for street-facing detection -- see UPCGFacadePatternStreetDetailLayoutSettings'
+	// identical property for the full explanation; only relevant when the optional "Streets" pin is
+	// connected.
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Door", meta = (PCG_Overridable))
+	double StreetSearchRadius = 8000.0;
 };
 
 class FPCGFacadeWindowDoorLayoutElement : public IPCGElement

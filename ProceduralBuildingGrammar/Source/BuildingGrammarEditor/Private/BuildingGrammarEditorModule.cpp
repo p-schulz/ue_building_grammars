@@ -8,11 +8,11 @@
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Osm/OsmTypes.h"
-#include "Osm/BuildingFootprintAssembler.h"
 #include "Config/GrammarConfigJson.h"
 #include "BuildingGenerationLibrary.h"
 #include "BuildingInstancePoolActor.h"
 #include "BuildingActorPersistence.h"
+#include "GeoReferenceOriginActor.h"
 #include "Presets/GrammarBuildingPresets.h"
 #include "EngineUtils.h"
 #include "Selection.h"
@@ -27,6 +27,8 @@
 #include "PCGComponent.h"
 #include "PCGGraph.h"
 #include "Helpers/PCGGraphParametersHelpers.h"
+#include "TreeImportLibrary.h"
+#include "TreeInstancePoolActor.h"
 
 #define LOCTEXT_NAMESPACE "BuildingGrammarEditor"
 
@@ -41,6 +43,7 @@ void FBuildingGrammarEditorModule::StartupModule()
 	// "Pick Building" Tools-menu entry below (OnPickBuildingClicked).
 	FEditorModeRegistry::Get().RegisterMode<FBuildingPickEdMode>(FBuildingPickEdMode::ModeID, FText(), FSlateIcon(), /*bVisible=*/false);
 	FBuildingPickEdMode::OnBuildingPicked.AddRaw(this, &FBuildingGrammarEditorModule::HandleBuildingPicked);
+	FEditorDelegates::OnMapLoad.AddRaw(this, &FBuildingGrammarEditorModule::HandleMapLoad);
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FBuildingGrammarEditorModule::RegisterMenus));
 }
@@ -48,6 +51,7 @@ void FBuildingGrammarEditorModule::StartupModule()
 void FBuildingGrammarEditorModule::ShutdownModule()
 {
 	FBuildingPickEdMode::OnBuildingPicked.RemoveAll(this);
+	FEditorDelegates::OnMapLoad.RemoveAll(this);
 	// UnrealEd may already be gone by the time a plugin module shuts down (no strict ordering
 	// guarantee) -- guard rather than risk calling into a torn-down singleton.
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("UnrealEd")))
@@ -85,6 +89,18 @@ void FBuildingGrammarEditorModule::RegisterMenus()
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnLoadConfigFromJsonClicked)));
 	Section.AddMenuEntry(
+		"SetLevelGeoReference",
+		LOCTEXT("SetLevelGeoReference", "Set Level Geo Reference..."),
+		LOCTEXT("SetLevelGeoReferenceTooltip", "Pin the shared projection origin every OSM import in this level snaps to, from a chosen file's own bounds. Lets multiple OSM extracts imported one after another stitch together instead of each landing centered on its own bounds."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnSetLevelGeoReferenceClicked)));
+	Section.AddMenuEntry(
+		"ClearLevelGeoReference",
+		LOCTEXT("ClearLevelGeoReference", "Clear Level Geo Reference"),
+		LOCTEXT("ClearLevelGeoReferenceTooltip", "Remove this level's shared projection origin, so the next OSM import re-establishes one from its own file's bounds instead of snapping to whatever was set before."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnClearLevelGeoReferenceClicked)));
+	Section.AddMenuEntry(
 		"GenerateFromOsm",
 		LOCTEXT("GenerateFromOsm", "Generate Buildings from OSM..."),
 		LOCTEXT("GenerateFromOsmTooltip", "Import an .osm file and generate procedural buildings into the current level"),
@@ -102,6 +118,18 @@ void FBuildingGrammarEditorModule::RegisterMenus()
 		LOCTEXT("BakeToStaticMeshTooltip", "Convert each generated building cell (selected pool actors, or every one in the level if none are selected) into one saved UStaticMesh asset, deleting the original pool actor and replacing it with a plain static mesh actor referencing the baked asset"),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked)));
+	Section.AddMenuEntry(
+		"ImportTreesFromGeoJson",
+		LOCTEXT("ImportTreesFromGeoJson", "Import Trees from GeoJSON..."),
+		LOCTEXT("ImportTreesFromGeoJsonTooltip", "Import a GeoJSON tree-cadastre export, filtered to a loaded OpenStreetMap file's own region, as one instanced tree pool actor. Assign meshes per tree type in Project Settings > Plugins > Procedural Building Grammar - Trees first, or nothing will render."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnImportTreesFromGeoJsonClicked)));
+	Section.AddMenuEntry(
+		"DeleteAllBuildingPools",
+		LOCTEXT("DeleteAllBuildingPools", "Delete All Generated Building Pools"),
+		LOCTEXT("DeleteAllBuildingPoolsTooltip", "Delete every generated building pool actor in the current level. Closing/reopening a level or the editor with many live pool actors can otherwise leave the editor window unresponsive during teardown -- run this first to avoid that."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnDeleteAllBuildingPoolsClicked)));
 	Section.AddMenuEntry(
 		"PickBuilding",
 		LOCTEXT("PickBuilding", "Pick Building"),
@@ -158,6 +186,100 @@ void FBuildingGrammarEditorModule::OnLoadConfigFromJsonClicked()
 		FText::FromString(FPaths::GetCleanFilename(OutFiles[0]))));
 }
 
+void FBuildingGrammarEditorModule::OnSetLevelGeoReferenceClicked()
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	double ExistingLatitude = 0.0, ExistingLongitude = 0.0;
+	if (AGeoReferenceOriginActor::FindInWorld(World, ExistingLatitude, ExistingLongitude))
+	{
+		const EAppReturnType::Type Confirm = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
+			LOCTEXT("ConfirmChangeGeoReference", "This level already has a geo reference ({0}, {1}). Changing it will misalign anything already generated against the old one. Continue?"),
+			FText::AsNumber(ExistingLatitude), FText::AsNumber(ExistingLongitude)));
+		if (Confirm != EAppReturnType::Yes)
+		{
+			return;
+		}
+	}
+
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (!DesktopPlatform)
+	{
+		return;
+	}
+
+	TArray<FString> OutFiles;
+	const void* ParentWindowHandle = FSlateApplication::IsInitialized() ? FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr) : nullptr;
+	const bool bOpened = DesktopPlatform->OpenFileDialog(
+		ParentWindowHandle,
+		TEXT("Select an OpenStreetMap .osm file to derive the geo reference from"),
+		FPaths::ProjectDir(),
+		TEXT(""),
+		TEXT("OpenStreetMap XML (*.osm)|*.osm"),
+		EFileDialogFlags::None,
+		OutFiles);
+	if (!bOpened || OutFiles.Num() == 0)
+	{
+		return;
+	}
+
+	FOsmDocument Document;
+	FString ParseError;
+	if (!FOsmDocument::ParseFile(OutFiles[0], Document, ParseError))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("GeoReferenceParseFailed", "Failed to parse '{0}': {1}"), FText::FromString(OutFiles[0]), FText::FromString(ParseError)));
+		return;
+	}
+
+	double Latitude = 0.0, Longitude = 0.0;
+	if (!Document.GetBoundsCenter(Latitude, Longitude))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("GeoReferenceNoBounds", "The selected file has no <bounds> element and no nodes to derive a geo reference from."));
+		return;
+	}
+
+	AGeoReferenceOriginActor::SetInWorld(World, Latitude, Longitude);
+	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
+		LOCTEXT("GeoReferenceSet", "Level geo reference set to ({0}, {1}) from '{2}'. Every OSM import in this level will now snap to it."),
+		FText::AsNumber(Latitude), FText::AsNumber(Longitude), FText::FromString(FPaths::GetCleanFilename(OutFiles[0]))));
+}
+
+void FBuildingGrammarEditorModule::OnClearLevelGeoReferenceClicked()
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<AGeoReferenceOriginActor*> Existing;
+	for (TActorIterator<AGeoReferenceOriginActor> It(World); It; ++It)
+	{
+		Existing.Add(*It);
+	}
+	if (Existing.Num() == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoGeoReferenceToClear", "This level has no geo reference set."));
+		return;
+	}
+
+	const EAppReturnType::Type Confirm = FMessageDialog::Open(EAppMsgType::YesNo,
+		LOCTEXT("ConfirmClearGeoReference", "Clear this level's geo reference? The next OSM import will establish a new one from its own file's bounds."));
+	if (Confirm != EAppReturnType::Yes)
+	{
+		return;
+	}
+
+	for (AGeoReferenceOriginActor* Actor : Existing)
+	{
+		Actor->Destroy();
+	}
+}
+
 // v1 flow: file-pick an .osm, derive a projection origin from the file's own node bounding-box
 // center (no manual lat/lon entry dialog yet), generate using whichever config
 // OnLoadConfigFromJsonClicked most recently loaded (falling back to the built-in urban_block
@@ -201,27 +323,29 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 		return;
 	}
 
-	// Origin is centered on the buildings themselves (FBuildingFootprintAssembler::
-	// ComputeFootprintBoundsCenter), not on every node in the file -- a document's road/path/
-	// boundary data commonly covers a larger and differently-shaped area than its building
-	// footprints, so a bounds-center over every node can land far from where the buildings
-	// actually are. GenerateBuildingsFromOsmFileChunked re-assembles footprints from the same file
-	// internally (see its own comment on why re-parsing here is an accepted small inefficiency);
-	// assembling them a second time here for this one call is the same acceptable cost.
-	const TArray<FBuildingFootprint> Footprints = FBuildingFootprintAssembler::Assemble(Document);
-	double CenterLatitude = 0.0;
-	double CenterLongitude = 0.0;
-	if (!FBuildingFootprintAssembler::ComputeFootprintBoundsCenter(Footprints, CenterLatitude, CenterLongitude))
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoNodes", "The selected file has no building footprints to generate from."));
-		return;
-	}
-
 	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
 	if (!World)
 	{
 		return;
 	}
+
+	// Fallback origin is the midpoint of the file's own <bounds> element (or, lacking one, of every
+	// node's own Lat/Lon extent -- see FOsmDocument::GetBounds/GetBoundsCenter). If this level already
+	// has a geo reference (AGeoReferenceOriginActor -- set explicitly via "Set Level Geo Reference..."
+	// or established automatically by an earlier import), that existing reference wins instead, so
+	// this file lands stitched against whatever was already generated rather than recentered on its
+	// own bounds. If not, this file's own bounds-center becomes the new reference, covering the
+	// first-import-in-a-level case automatically.
+	double FallbackLatitude = 0.0;
+	double FallbackLongitude = 0.0;
+	if (!Document.GetBoundsCenter(FallbackLatitude, FallbackLongitude))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoNodes", "The selected file has no <bounds> element and no nodes to generate from."));
+		return;
+	}
+	double CenterLatitude = 0.0;
+	double CenterLongitude = 0.0;
+	AGeoReferenceOriginActor::ResolveOrigin(World, FallbackLatitude, FallbackLongitude, CenterLatitude, CenterLongitude);
 
 	// Document was already parsed once above just to find the projection origin;
 	// GenerateBuildingsFromOsmFileChunked parses the same file again internally. A small, acceptable
@@ -353,6 +477,93 @@ void FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked()
 			: FText::GetEmpty()));
 }
 
+// Shared by OnDeleteAllBuildingPoolsClicked (manual, with its own confirmation/progress UI) and
+// HandleMapLoad (automatic, silent) -- see either caller's own comment for why deleting these
+// matters. Plain Destroy() per actor, same as UBuildingStreamingSubsystem::DeactivateCell's own
+// cleanup -- no special-cased component teardown needed.
+int32 FBuildingGrammarEditorModule::DeleteAllBuildingPools(UWorld* World)
+{
+	if (!World)
+	{
+		return 0;
+	}
+
+	TArray<ABuildingInstancePoolActor*> Targets;
+	for (TActorIterator<ABuildingInstancePoolActor> It(World); It; ++It)
+	{
+		Targets.Add(*It);
+	}
+
+	int32 DeletedCount = 0;
+	for (ABuildingInstancePoolActor* Pool : Targets)
+	{
+		if (Pool->Destroy())
+		{
+			++DeletedCount;
+		}
+	}
+	return DeletedCount;
+}
+
+// Teardown workaround: a level (or the editor itself) with many live ABuildingInstancePoolActors
+// -- each owning a UDynamicMeshComponent hero mesh plus one UHierarchicalInstancedStaticMeshComponent
+// per (Role, VariantKey) bucket -- can leave the editor window unresponsive while closing/reopening
+// the level, since teardown has to destroy every one of those components/instances at once. Deleting
+// the pool actors first (here, while the editor is still responsive) avoids hitting that during the
+// level transition itself. See HandleMapLoad for the automatic counterpart to this manual action.
+void FBuildingGrammarEditorModule::OnDeleteAllBuildingPoolsClicked()
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	int32 PoolCount = 0;
+	for (TActorIterator<ABuildingInstancePoolActor> It(World); It; ++It)
+	{
+		++PoolCount;
+	}
+
+	if (PoolCount == 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoPoolsToDelete", "No generated building pool actors found in this level."));
+		return;
+	}
+
+	const EAppReturnType::Type Confirm = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
+		LOCTEXT("ConfirmDeleteAllPools", "Delete all {0} generated building pool actor(s) in this level? This cannot be undone."),
+		FText::AsNumber(PoolCount)));
+	if (Confirm != EAppReturnType::Yes)
+	{
+		return;
+	}
+
+	FScopedSlowTask SlowTask(1.0f, LOCTEXT("DeletingBuildingPools", "Deleting building pools..."));
+	SlowTask.MakeDialog();
+	const int32 DeletedCount = DeleteAllBuildingPools(World);
+
+	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("DeleteAllPoolsComplete", "Deleted {0} building pool actor(s)."), FText::AsNumber(DeletedCount)));
+}
+
+// Automatic counterpart to OnDeleteAllBuildingPoolsClicked -- see this function's own declaration
+// comment in the header for why FEditorDelegates::OnMapLoad is the right hook (fires before the
+// current level's teardown begins, covers both "Open Level" and "New Level") and why editor-close
+// isn't handled the same way. Deliberately silent (log only): this can fire on every level
+// open/new-level, so a confirmation dialog or summary popup every time would be intrusive for what
+// is, by design, a routine cleanup step rather than something the user needs to approve each time.
+// OutCanLoadMap is left untouched (defaults to true, i.e. never vetoes the load) -- there's no
+// reason for a cleanup step to block loading the new level.
+void FBuildingGrammarEditorModule::HandleMapLoad(const FString& Filename, FCanLoadMap& OutCanLoadMap)
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	const int32 DeletedCount = DeleteAllBuildingPools(World);
+	if (DeletedCount > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("BuildingGrammarEditor: deleted %d building pool actor(s) before loading '%s' (avoids the editor becoming unresponsive while the old level tears down)."), DeletedCount, *Filename);
+	}
+}
+
 // Alternative to OnGenerateFromOsmClicked: drives the BuildingGrammarPCG module's PCG-graph-based
 // pipeline instead of the deterministic C++ engine (see that module's own header comment for how the
 // two relate). Reuses an existing UPCGComponent already pointed at the graph -- preferring the
@@ -458,6 +669,93 @@ void FBuildingGrammarEditorModule::OnGeneratePCGClicked()
 	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
 		LOCTEXT("PCGGenerationStarted", "Started PCG generation on '{0}' from '{1}'. PCG graph execution runs asynchronously -- check the level shortly for results, and the Output Log for any node errors (e.g. \"No OSM file path set\" means the graph doesn't expose an 'OsmFilePath' Graph Parameter yet, or it isn't wired to the data-source nodes)."),
 		FText::FromString(TargetComponent->GetOwner()->GetActorLabel()),
+		FText::FromString(FPaths::GetCleanFilename(OsmFilePath))));
+}
+
+// Two file-pick dialogs (GeoJSON, then the .osm defining the origin/region), then a single
+// UTreeImportLibrary::ImportTreesFromGeoJson call -- see that function's own header comment for the
+// filtering/projection/ground-snap/random-rotation details, and this class's own header comment on
+// UTreeMeshSettings for why nothing may render until meshes are assigned there.
+void FBuildingGrammarEditorModule::OnImportTreesFromGeoJsonClicked()
+{
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (!DesktopPlatform)
+	{
+		return;
+	}
+
+	TArray<FString> GeoJsonFiles;
+	const void* ParentWindowHandle = FSlateApplication::IsInitialized() ? FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr) : nullptr;
+	const bool bPickedGeoJson = DesktopPlatform->OpenFileDialog(
+		ParentWindowHandle,
+		TEXT("Select a GeoJSON tree file"),
+		FPaths::ProjectDir(),
+		TEXT(""),
+		TEXT("GeoJSON (*.geojson;*.json)|*.geojson;*.json"),
+		EFileDialogFlags::None,
+		GeoJsonFiles);
+	if (!bPickedGeoJson || GeoJsonFiles.Num() == 0)
+	{
+		return;
+	}
+
+	TArray<FString> OsmFiles;
+	const bool bPickedOsm = DesktopPlatform->OpenFileDialog(
+		ParentWindowHandle,
+		TEXT("Select the OpenStreetMap .osm file defining the region to filter trees into"),
+		FPaths::ProjectDir(),
+		TEXT(""),
+		TEXT("OpenStreetMap XML (*.osm)|*.osm"),
+		EFileDialogFlags::None,
+		OsmFiles);
+	if (!bPickedOsm || OsmFiles.Num() == 0)
+	{
+		return;
+	}
+	const FString OsmFilePath = OsmFiles[0];
+
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	// Same projection-origin derivation OnGenerateFromOsmClicked uses for this same file (including
+	// AGeoReferenceOriginActor::ResolveOrigin -- an existing level geo reference wins over this file's
+	// own bounds), so trees line up with whatever buildings were (or will be) generated in this level.
+	FOsmDocument Document;
+	FString ParseError;
+	if (!FOsmDocument::ParseFile(OsmFilePath, Document, ParseError))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("TreeOsmParseFailed", "Failed to parse '{0}': {1}"), FText::FromString(OsmFilePath), FText::FromString(ParseError)));
+		return;
+	}
+	double FallbackLatitude = 0.0;
+	double FallbackLongitude = 0.0;
+	if (!Document.GetBoundsCenter(FallbackLatitude, FallbackLongitude))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("TreeOsmNoFootprints", "The selected OSM file has no <bounds> element and no nodes to derive a projection origin from."));
+		return;
+	}
+	double CenterLatitude = 0.0;
+	double CenterLongitude = 0.0;
+	AGeoReferenceOriginActor::ResolveOrigin(World, FallbackLatitude, FallbackLongitude, CenterLatitude, CenterLongitude);
+
+	FString ImportError;
+	ATreeInstancePoolActor* Pool = UTreeImportLibrary::ImportTreesFromGeoJson(
+		World, GeoJsonFiles[0], OsmFilePath, CenterLatitude, CenterLongitude, /*bSnapToGround=*/true, /*RandomSeed=*/12345, ImportError);
+
+	if (!Pool)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("TreeImportFailed", "Failed to import trees: {0}"), FText::FromString(ImportError)));
+		return;
+	}
+
+	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
+		LOCTEXT("TreeImportComplete", "Imported {0} tree instance(s) across {1} mesh bucket(s) from '{2}', filtered to '{3}'s region.\n\nIf that's 0, assign meshes per tree type in Project Settings > Plugins > Procedural Building Grammar - Trees -- trees whose type has no mesh configured are skipped rather than spawned with a placeholder."),
+		FText::AsNumber(Pool->NumInstances()),
+		FText::AsNumber(Pool->NumBuckets()),
+		FText::FromString(FPaths::GetCleanFilename(GeoJsonFiles[0])),
 		FText::FromString(FPaths::GetCleanFilename(OsmFilePath))));
 }
 

@@ -137,6 +137,8 @@ bool FPCGRoofDetailLayoutElement::ExecuteInternal(FPCGContext* Context) const
 	}
 	const UPCGMetadata* InfoMetadata = BuildingInfo ? BuildingInfo->ConstMetadata() : nullptr;
 	const FPCGMetadataAttribute<double>* TotalHeightAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<double>(TEXT("TotalHeight")) : nullptr;
+	const FPCGMetadataAttribute<double>* MinHeightAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<double>(TEXT("MinHeight")) : nullptr;
+	const FPCGMetadataAttribute<bool>* HasBuildingPartsAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<bool>(TEXT("HasBuildingParts")) : nullptr;
 
 	const TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(FootprintPinLabel);
 	for (const FPCGTaggedData& Input : Inputs)
@@ -173,6 +175,18 @@ bool FPCGRoofDetailLayoutElement::ExecuteInternal(FPCGContext* Context) const
 			Footprint2D.Add(FVector2D(Point.Position.X, Point.Position.Y));
 		}
 
+		// See UPCGRoofFrameGeneratorSettings' identical skip and its own comment on
+		// HasBuildingPartsAttr -- a parent with building:part children gets no roof (and so no roof
+		// details -- tiles, dormers, chimneys, roof windows -- either) here; each part gets its own.
+		if (HasBuildingPartsAttr)
+		{
+			const int64 InfoEntryKeyForSkipCheck = BuildingInfo ? BuildingInfo->FindMetadataKey(FName(*ExtractSourceNameFromTags(Input.Tags))) : INDEX_NONE;
+			if (InfoEntryKeyForSkipCheck != INDEX_NONE && HasBuildingPartsAttr->GetValueFromItemKey(InfoEntryKeyForSkipCheck))
+			{
+				continue;
+			}
+		}
+
 		// Resolved once per building, before any gating/frame math -- see
 		// UPCGRoofFrameGeneratorSettings' identical resolution for why (this building's own StyleInfo
 		// row, if present, supplies its actual roof Type, not just per-role Material/Color).
@@ -188,7 +202,8 @@ bool FPCGRoofDetailLayoutElement::ExecuteInternal(FPCGContext* Context) const
 
 		// This building's own OSM-derived TotalHeight (see UPCGLoadOsmBuildingVolumesSettings'
 		// header comment) if BuildingInfo is connected and has a usable row, else this node's own
-		// flat EaveHeight -- see this class's header comment.
+		// flat EaveHeight -- see this class's header comment. MinHeight is added on top regardless
+		// (0 if unavailable) -- see UPCGRoofFrameGeneratorSettings' identical addition for why.
 		double EffectiveEaveHeight = Settings->EaveHeight;
 		if (BuildingInfo && TotalHeightAttr)
 		{
@@ -199,6 +214,10 @@ bool FPCGRoofDetailLayoutElement::ExecuteInternal(FPCGContext* Context) const
 				if (TotalHeight > 0.0)
 				{
 					EffectiveEaveHeight = TotalHeight;
+				}
+				if (MinHeightAttr)
+				{
+					EffectiveEaveHeight += MinHeightAttr->GetValueFromItemKey(InfoEntryKey);
 				}
 			}
 		}

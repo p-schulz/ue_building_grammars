@@ -4,9 +4,6 @@
 #include "Metadata/PCGMetadata.h"
 #include "Grammar/GrammarStyleSelection.h"
 #include "Config/BuildingGrammarConfig.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
 #include "PCGBuildingGrammarDefaults.h"
 
 UPCGSelectFacadeStyleSettings::UPCGSelectFacadeStyleSettings()
@@ -27,26 +24,6 @@ namespace
 	// Meters (BuildingGrammarCore's own working unit) -> UE centimeters, matching the rest of this
 	// pipeline's UE-world-units convention -- see the module's own header comment.
 	constexpr double MetersToUnrealUnits = 100.0;
-
-	TMap<FString, FString> DeserializeTagsFromJson(const FString& Json)
-	{
-		TMap<FString, FString> Tags;
-		if (Json.IsEmpty())
-		{
-			return Tags;
-		}
-
-		TSharedPtr<FJsonObject> JsonObject;
-		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
-		if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
-		{
-			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : JsonObject->Values)
-			{
-				Tags.Add(Pair.Key, Pair.Value->AsString());
-			}
-		}
-		return Tags;
-	}
 
 	// Reimplementation of GrammarEngineInternal::StyleHasShutters(StyleTokens(Style, {})) --
 	// BuildingGrammarCore's own version is private to that module (Private/Grammar/
@@ -228,6 +205,7 @@ bool FPCGSelectFacadeStyleElement::ExecuteInternal(FPCGContext* Context) const
 		FPCGMetadataAttribute<double>* WindowMarginAttr = StyleMetadata->CreateAttribute<double>(TEXT("WindowMargin"), 0.0, false, false);
 		FPCGMetadataAttribute<double>* WindowSillHeightAttr = StyleMetadata->CreateAttribute<double>(TEXT("WindowSillHeight"), 0.0, false, false);
 		FPCGMetadataAttribute<double>* WindowDepthAttr = StyleMetadata->CreateAttribute<double>(TEXT("WindowDepth"), 0.0, false, false);
+		FPCGMetadataAttribute<double>* WindowRecessDepthAttr = StyleMetadata->CreateAttribute<double>(TEXT("WindowRecessDepth"), 0.0, false, false);
 		FPCGMetadataAttribute<FString>* WindowMaterialAttr = StyleMetadata->CreateAttribute<FString>(TEXT("WindowMaterial"), FString(), false, false);
 		FPCGMetadataAttribute<FVector4>* WindowColorAttr = StyleMetadata->CreateAttribute<FVector4>(TEXT("WindowColor"), FVector4(1.0, 1.0, 1.0, 1.0), false, false);
 		FPCGMetadataAttribute<double>* WindowFrameWidthAttr = StyleMetadata->CreateAttribute<double>(TEXT("WindowFrameWidth"), 0.0, false, false);
@@ -244,9 +222,11 @@ bool FPCGSelectFacadeStyleElement::ExecuteInternal(FPCGContext* Context) const
 		FPCGMetadataAttribute<double>* DoorWidthAttr = StyleMetadata->CreateAttribute<double>(TEXT("DoorWidth"), 0.0, false, false);
 		FPCGMetadataAttribute<double>* DoorHeightAttr = StyleMetadata->CreateAttribute<double>(TEXT("DoorHeight"), 0.0, false, false);
 		FPCGMetadataAttribute<double>* DoorDepthAttr = StyleMetadata->CreateAttribute<double>(TEXT("DoorDepth"), 0.0, false, false);
+		FPCGMetadataAttribute<double>* DoorRecessDepthAttr = StyleMetadata->CreateAttribute<double>(TEXT("DoorRecessDepth"), 0.0, false, false);
 		FPCGMetadataAttribute<FString>* DoorMaterialAttr = StyleMetadata->CreateAttribute<FString>(TEXT("DoorMaterial"), FString(), false, false);
 		FPCGMetadataAttribute<FVector4>* DoorColorAttr = StyleMetadata->CreateAttribute<FVector4>(TEXT("DoorColor"), FVector4(1.0, 1.0, 1.0, 1.0), false, false);
 		FPCGMetadataAttribute<FString>* DoorPlacementAttr = StyleMetadata->CreateAttribute<FString>(TEXT("DoorPlacement"), FString(), false, false);
+		FPCGMetadataAttribute<double>* DoorFrameWidthAttr = StyleMetadata->CreateAttribute<double>(TEXT("DoorFrameWidth"), 0.0, false, false);
 
 		FPCGMetadataAttribute<bool>* LedgeEnabledAttr = StyleMetadata->CreateAttribute<bool>(TEXT("LedgeEnabled"), false, false, false);
 		FPCGMetadataAttribute<double>* LedgeDepthAttr = StyleMetadata->CreateAttribute<double>(TEXT("LedgeDepth"), 0.0, false, false);
@@ -337,6 +317,7 @@ bool FPCGSelectFacadeStyleElement::ExecuteInternal(FPCGContext* Context) const
 			WindowMarginAttr->SetValue(OutEntryKey, Window.MinMargin * MetersToUnrealUnits);
 			WindowSillHeightAttr->SetValue(OutEntryKey, Window.SillHeight * MetersToUnrealUnits);
 			WindowDepthAttr->SetValue(OutEntryKey, Window.Depth * MetersToUnrealUnits);
+			WindowRecessDepthAttr->SetValue(OutEntryKey, Window.RecessDepth * MetersToUnrealUnits);
 			WindowMaterialAttr->SetValue(OutEntryKey, Window.Material);
 			WindowColorAttr->SetValue(OutEntryKey, FVector4(Window.Color.R, Window.Color.G, Window.Color.B, Window.Color.A));
 			WindowFrameWidthAttr->SetValue(OutEntryKey, Window.FrameWidth * MetersToUnrealUnits);
@@ -355,9 +336,11 @@ bool FPCGSelectFacadeStyleElement::ExecuteInternal(FPCGContext* Context) const
 			DoorWidthAttr->SetValue(OutEntryKey, Door.Width * MetersToUnrealUnits);
 			DoorHeightAttr->SetValue(OutEntryKey, Door.Height * MetersToUnrealUnits);
 			DoorDepthAttr->SetValue(OutEntryKey, Door.Depth * MetersToUnrealUnits);
+			DoorRecessDepthAttr->SetValue(OutEntryKey, Door.RecessDepth * MetersToUnrealUnits);
 			DoorMaterialAttr->SetValue(OutEntryKey, Door.Material);
 			DoorColorAttr->SetValue(OutEntryKey, FVector4(Door.Color.R, Door.Color.G, Door.Color.B, Door.Color.A));
 			DoorPlacementAttr->SetValue(OutEntryKey, DoorPlacementToString(Door.Placement));
+			DoorFrameWidthAttr->SetValue(OutEntryKey, Door.FrameWidth * MetersToUnrealUnits);
 
 			const FLedgeStyleConfig& Ledge = Style->Ledge;
 			LedgeEnabledAttr->SetValue(OutEntryKey, Ledge.bEnabled);

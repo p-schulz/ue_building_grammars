@@ -18,9 +18,10 @@ namespace
 TArray<FVector> FGrammarRoofFrameMath::RoofBaseVertices(const TArray<FVector2D>& Footprint, double Height, double Overhang)
 {
 	TArray<FVector> Result;
-	Result.Reserve(Footprint.Num());
+	const int32 Count = Footprint.Num();
+	Result.Reserve(Count);
 
-	if (Overhang <= 0.0)
+	if (Overhang <= 0.0 || Count < 3)
 	{
 		for (const FVector2D& Point : Footprint)
 		{
@@ -29,20 +30,48 @@ TArray<FVector> FGrammarRoofFrameMath::RoofBaseVertices(const TArray<FVector2D>&
 		return Result;
 	}
 
-	const FVector2D Center = FGrammarGeometry2D::Centroid2D(Footprint);
-	for (const FVector2D& Point : Footprint)
+	// Per-vertex miter-join offset: each vertex is pushed along the bisector of its two adjacent
+	// edges' own outward normals (FGrammarGeometry2D::OutwardNormal, reused rather than
+	// re-derived), scaled so both adjacent edges end up exactly Overhang away from their original
+	// line -- the standard polygon-offset construction, and correct for non-convex (L-shaped)
+	// footprints. Previously this pushed each vertex radially away from the polygon's centroid
+	// instead, which is only a good approximation for roughly-convex/rectangular footprints: at a
+	// concave (inward) corner of an L-shaped building the centroid direction isn't aligned with
+	// either adjacent edge's normal at all, so that eave vertex ended up shifted sideways off its
+	// wall edge instead of pushed straight out from it. Assumes Footprint is CCW (every caller
+	// already guarantees this -- see FGrammarGeometry2D::OrientFootprintCCW's own callers).
+	//
+	// Not a full robust polygon-offset (no self-intersection clipping for extreme reflex angles or
+	// very large Overhang relative to edge length, unlike e.g. Clipper's polygon offsetting) --
+	// building footprints have small Overhang relative to wall lengths in practice, so a plain
+	// miter join (with its length clamped to at most 4x Overhang, avoiding an unbounded spike at a
+	// near-180-degree corner) is sufficient without pulling in a general polygon-clipping library.
+	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		const FVector2D Delta = Point - Center;
-		const double Length = Delta.Size();
-		if (Length <= 0.0)
+		const FVector2D& Prev = Footprint[(Index - 1 + Count) % Count];
+		const FVector2D& Current = Footprint[Index];
+		const FVector2D& Next = Footprint[(Index + 1) % Count];
+
+		const FVector2D NormalIn = FGrammarGeometry2D::OutwardNormal(Prev, Current, /*bCCW=*/true);
+		const FVector2D NormalOut = FGrammarGeometry2D::OutwardNormal(Current, Next, /*bCCW=*/true);
+
+		FVector2D Bisector = FGrammarGeometry2D::Normalize2D(NormalIn + NormalOut);
+		double MiterScale = 1.0;
+		if (Bisector.IsNearlyZero())
 		{
-			Result.Add(FVector(Point.X, Point.Y, Height));
+			// Adjacent edges fold back on themselves (near-180-degree turn, or one edge is
+			// degenerate/zero-length) -- fall back to whichever normal is valid so the offset
+			// direction stays sane instead of collapsing to zero.
+			Bisector = NormalIn.IsNearlyZero() ? NormalOut : NormalIn;
 		}
 		else
 		{
-			const FVector2D Pushed = Point + Delta / Length * Overhang;
-			Result.Add(FVector(Pushed.X, Pushed.Y, Height));
+			const double CosHalfAngle = FVector2D::DotProduct(Bisector, NormalIn);
+			MiterScale = FMath::Clamp(1.0 / FMath::Max(CosHalfAngle, 0.25), 1.0, 4.0);
 		}
+
+		const FVector2D Pushed = Current + Bisector * (Overhang * MiterScale);
+		Result.Add(FVector(Pushed.X, Pushed.Y, Height));
 	}
 	return Result;
 }

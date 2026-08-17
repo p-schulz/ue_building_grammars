@@ -20,14 +20,19 @@ namespace
 
 namespace GrammarDoor
 {
+	double EffectiveHeight(const FDoorStyleConfig& Door, double GroundFloorHeight)
+	{
+		return FMath::Min(Door.Height, FMath::Max(1.6, GroundFloorHeight - 0.25));
+	}
+
 	FGrammarPlacementRecord DoorPlacement(const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, double Offset, double GroundFloorHeight, const FFacadeStyleConfig& Style)
 	{
 		const FVector2D Tangent = FGrammarGeometry2D::Tangent(Start, End);
 		const FDoorStyleConfig& Door = Style.Door;
-		const double Height = FMath::Min(Door.Height, FMath::Max(1.6, GroundFloorHeight - 0.25));
+		const double Height = EffectiveHeight(Door, GroundFloorHeight);
 
 		FGrammarBoxPlacementParams Params;
-		Params.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Door.Depth);
+		Params.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Door.Depth - Door.RecessDepth);
 		Params.Tangent = Tangent;
 		Params.Normal = Normal;
 		Params.Width = Door.Width;
@@ -41,8 +46,8 @@ namespace GrammarDoor
 	{
 		const FVector2D Tangent = FGrammarGeometry2D::Tangent(Start, End);
 		const FDoorStyleConfig& Door = Style.Door;
-		const double Height = FMath::Min(Door.Height, FMath::Max(1.6, GroundFloorHeight - 0.25));
-		const double Depth = Door.Depth + FMath::Max(Door.FrameDepth, 0.0);
+		const double Height = EffectiveHeight(Door, GroundFloorHeight);
+		const double Depth = Door.Depth + FMath::Max(Door.FrameDepth, 0.0) - Door.RecessDepth;
 		const double FrameWidth = FMath::Max(Door.FrameWidth, 0.0);
 
 		TArray<FGrammarPlacementRecord> Result;
@@ -72,7 +77,7 @@ namespace GrammarDoor
 		if (Door.bCanopyEnabled && Door.CanopyWidth > 0.0 && Door.CanopyDepth > 0.0 && Door.CanopyThickness > 0.0)
 		{
 			FGrammarBoxPlacementParams CanopyParams;
-			CanopyParams.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Door.CanopyDepth / 2.0);
+			CanopyParams.Center = FGrammarGeometry2D::PointOnSegment(Start, Tangent, Normal, Offset, Door.CanopyDepth / 2.0 - Door.RecessDepth);
 			CanopyParams.Tangent = Tangent;
 			CanopyParams.Normal = Normal;
 			CanopyParams.Width = Door.CanopyWidth;

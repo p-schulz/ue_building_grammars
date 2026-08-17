@@ -2,6 +2,7 @@
 #include "Grammar/GrammarRoofDirection.h"
 #include "Grammar/GrammarEngineInternal.h"
 #include "Grammar/GrammarPlacementHelpers.h"
+#include "Grammar/GrammarTagParsing.h"
 #include "Geometry/GrammarGeometry2D.h"
 #include "Geometry/GrammarRoofFrame.h"
 
@@ -125,6 +126,37 @@ namespace
 			Result.Add(BoxPlacement(TEXT("roof_window"), Roof.RoofWindowMaterial, FVector2D(WindowCenter.X, WindowCenter.Y), Frame.Direction, Outward, DormerWidth * 0.45, 0.035, DormerHeight * 0.38, Z + DormerHeight * 0.3, Roof.RoofWindowColor));
 		}
 		return Result;
+	}
+
+	// True only for a feature that IS a standalone chimney/smokestack (man_made=chimney or
+	// chimney_pipe) -- i.e. one where its own OSM "height" tag unambiguously means "how tall this
+	// chimney is". Deliberately NOT true for an ordinary building that merely has decorative roof
+	// chimneys (Roof.ChimneyCount>0 from its style): that building's own "height" tag means the
+	// BUILDING's height, not the chimney's -- using it for ChimneyHeight there would be wrong, not
+	// an improvement (see EffectiveChimneyHeight's own comment below for what this fixes).
+	bool IsStandaloneChimneyFeature(const TMap<FString, FString>& Tags)
+	{
+		const FString* ManMade = Tags.Find(TEXT("man_made"));
+		return ManMade && (*ManMade == TEXT("chimney") || *ManMade == TEXT("chimney_pipe"));
+	}
+
+	// A style's own ChimneyHeight is necessarily a single fixed guess (e.g. an "industrial
+	// smokestack" style might set 45m), but OSM's man_made=chimney/chimney_pipe tag alone carries no
+	// size information -- a real, modestly-sized residential chimney mapped as its own feature
+	// matches the exact same style as a genuine 45m industrial smokestack. When the matched
+	// feature's own explicit "height" tag is present, prefer it over the style's fixed guess -- same
+	// "explicit OSM tag overrides a style/config default" precedent as FGrammarLevels::InferLevels/
+	// FloorHeightSequence's own height-tag handling for building height.
+	double EffectiveChimneyHeight(const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags)
+	{
+		if (Roof.ChimneyCount > 0 && IsStandaloneChimneyFeature(Tags))
+		{
+			if (const TOptional<double> ExplicitHeight = FGrammarTagParsing::ParseMeters(Tags.Find(TEXT("height"))))
+			{
+				return ExplicitHeight.GetValue();
+			}
+		}
+		return Roof.ChimneyHeight;
 	}
 
 	TArray<FGrammarPlacementRecord> ChimneyPlacements(const FGrammarRoofFrame& Frame, const FRoofStyleConfig& Roof)
@@ -268,7 +300,20 @@ namespace GrammarRoofDetails
 		Result.Append(RoofTilePlacements(Frame, Roof, Roof.Type));
 		Result.Append(RoofWindowPlacements(Frame, Roof, Roof.Type));
 		Result.Append(DormerPlacements(Frame, Roof, Roof.Type));
-		Result.Append(ChimneyPlacements(Frame, Roof));
+
+		// See EffectiveChimneyHeight's own comment -- only actually differs from Roof.ChimneyHeight
+		// for a standalone man_made=chimney/chimney_pipe feature with its own explicit "height" tag.
+		const double ChimneyHeight = EffectiveChimneyHeight(Roof, Tags);
+		if (ChimneyHeight != Roof.ChimneyHeight)
+		{
+			FRoofStyleConfig AdjustedRoof = Roof;
+			AdjustedRoof.ChimneyHeight = ChimneyHeight;
+			Result.Append(ChimneyPlacements(Frame, AdjustedRoof));
+		}
+		else
+		{
+			Result.Append(ChimneyPlacements(Frame, Roof));
+		}
 		return Result;
 	}
 

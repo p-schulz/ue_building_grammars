@@ -8,10 +8,15 @@
 #include "PCGComputeOsmOrigin.generated.h"
 
 // Data-source PCG node: computes a sensible FLocalTangentPlaneProjection origin for an .osm file --
-// the center of its building footprints' bounding box (reusing
-// FBuildingFootprintAssembler::ComputeFootprintBoundsCenter, the exact same logic the classic
-// Tools-menu "Generate Buildings from OSM..." workflow already uses to derive its origin
-// automatically, rather than requiring it typed in by hand).
+// the midpoint of the file's own <bounds> element (or, for a file that lacks one, of every node's
+// own Lat/Lon extent -- see FOsmDocument::GetBounds/GetBoundsCenter), reusing the exact same logic
+// every other "generate/import" action in this plugin (and ProceduralRoads) uses to derive its
+// origin automatically, rather than requiring it typed in by hand or computed differently by each
+// caller. If the current level already has a geo reference (AGeoReferenceOriginActor -- set via
+// "Set Level Geo Reference..." or established by an earlier import), that existing reference is used
+// instead of this file's own bounds, so PCG-generated content stitches together with content from
+// other OSM extracts imported into the same level over time rather than each one recentering on
+// itself; if not, this file's own bounds-center becomes the level's new reference.
 //
 // Wire this node's OsmFilePath to the SAME Graph Parameter as UPCGLoadOsmBuildingVolumesSettings and
 // UPCGGetStreetNetworkSettings' OsmFilePath, then wire this node's "Origin" output into both of
@@ -33,7 +38,7 @@ public:
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("ComputeOsmOrigin")); }
 	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGComputeOsmOriginSettings", "NodeTitle", "Compute OSM Origin"); }
-	virtual FText GetNodeTooltipText() const override { return NSLOCTEXT("PCGComputeOsmOriginSettings", "NodeTooltip", "Computes a projection origin (building-footprint bounds center) for an .osm file, so every node projecting that file shares the exact same origin."); }
+	virtual FText GetNodeTooltipText() const override { return NSLOCTEXT("PCGComputeOsmOriginSettings", "NodeTooltip", "Computes a projection origin (the .osm file's own <bounds> midpoint) so every node projecting that file shares the exact same origin."); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Param; }
 #endif
 

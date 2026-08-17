@@ -40,8 +40,35 @@ struct BUILDINGGRAMMARCORE_API FOsmDocument
 	TMap<int64, FOsmWay> Ways;
 	TMap<int64, FOsmRelation> Relations;
 
+	// True if this document's own <bounds minlat=".." maxlat=".." minlon=".." maxlon=".."/> element
+	// was present and parsed -- the ORIGINAL query area, which may be larger than what GetBounds
+	// would otherwise compute from just the nodes actually present. See GetBounds.
+	bool bHasExplicitBounds = false;
+	double BoundsMinLat = 0.0;
+	double BoundsMaxLat = 0.0;
+	double BoundsMinLon = 0.0;
+	double BoundsMaxLon = 0.0;
+
 	// Parses an OSM XML (.osm) file via Unreal's XmlParser module (FXmlFile). Returns false and
 	// fills OutError on a malformed/unreadable file; unrecognized elements are skipped rather than
 	// treated as errors.
 	static bool ParseFile(const FString& FilePath, FOsmDocument& OutDocument, FString& OutError);
+
+	// This document's own lat/lon extent -- the parsed <bounds> element if present, else computed
+	// from every node's own Lat/Lon (a node-extent fallback still correctly covers everything the
+	// file actually contains, just not necessarily the full area the file was originally queried
+	// for). Returns false (Out params left untouched) only if there's neither an explicit <bounds>
+	// element nor any nodes at all.
+	bool GetBounds(double& OutMinLat, double& OutMaxLat, double& OutMinLon, double& OutMaxLon) const;
+
+	// Midpoint of GetBounds() -- (MinLat+MaxLat)/2, (MinLon+MaxLon)/2 -- the standard shared
+	// projection origin this project's various "generate/import" actions use so buildings, trees,
+	// roads, and satellite imagery all land in the same local-tangent-plane space (see
+	// FLocalTangentPlaneProjection). Same simple min/max-average convention
+	// FBuildingFootprintAssembler::ComputeFootprintBoundsCenter used (not an area-weighted
+	// centroid), but over the FILE's own bounds rather than just its building footprints -- doesn't
+	// need footprints assembled at all, and still gives a usable origin for a file with no
+	// buildings (a road-only or tree-only extract). Returns false (Out params left untouched) only
+	// if GetBounds() itself would.
+	bool GetBoundsCenter(double& OutCenterLatitude, double& OutCenterLongitude) const;
 };

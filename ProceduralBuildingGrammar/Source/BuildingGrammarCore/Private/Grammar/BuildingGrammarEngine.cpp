@@ -151,20 +151,55 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 
 		const TArray<double> WindowPositions = GrammarWallWindow::WindowOffsets(Length, Style.Window.Width, Style.Window.Spacing, Style.Window.MinMargin);
 		const double DoorOffset = Length / 2.0;
+		const bool bDoorApplies = GrammarEngineInternal::DoorApplies(Style, SideIndex, StreetSideIndex, Tags);
+
+		// Gathered before the wall mesh is built so FGrammarWallRecess::BuildSegments (via WallMesh/
+		// WallRowMesh) can notch the wall around exactly the same openings WindowPlacement/DoorPlacement
+		// go on to place below -- same floor loop, same WindowOverlapsDoor skip, so the recess and the
+		// actual window/door placement always agree on where an opening is.
+		TArray<FGrammarWallOpening> Openings;
+		for (int32 FloorIndex = 0; FloorIndex < FloorBottoms.Num(); ++FloorIndex)
+		{
+			double WindowHeight, WindowBottomOffset;
+			GrammarWallWindow::WindowVerticalExtent(Style.Window, FloorHeights[FloorIndex], WindowHeight, WindowBottomOffset);
+			const double WindowBottom = FloorBottoms[FloorIndex] + WindowBottomOffset;
+			for (const double Offset : WindowPositions)
+			{
+				if (FloorIndex == 0 && bDoorApplies && GrammarEngineInternal::WindowOverlapsDoor(Offset, DoorOffset, Style))
+				{
+					continue;
+				}
+				FGrammarWallOpening& Opening = Openings.AddDefaulted_GetRef();
+				Opening.SLeft = Offset - Style.Window.Width / 2.0;
+				Opening.SRight = Offset + Style.Window.Width / 2.0;
+				Opening.ZBottom = WindowBottom;
+				Opening.ZTop = WindowBottom + WindowHeight;
+				Opening.RecessDepth = Style.Window.RecessDepth;
+			}
+		}
+		if (bDoorApplies)
+		{
+			const double DoorHeight = GrammarDoor::EffectiveHeight(Style.Door, FloorHeights[0]);
+			FGrammarWallOpening& Opening = Openings.AddDefaulted_GetRef();
+			Opening.SLeft = DoorOffset - Style.Door.Width / 2.0;
+			Opening.SRight = DoorOffset + Style.Door.Width / 2.0;
+			Opening.ZBottom = 0.0;
+			Opening.ZTop = DoorHeight;
+			Opening.RecessDepth = Style.Door.RecessDepth;
+		}
 
 		if (Style.WallRowColors.Num() > 0)
 		{
 			for (int32 FloorIndex = 0; FloorIndex < FloorBottoms.Num(); ++FloorIndex)
 			{
-				HeroMeshes.Add(GrammarWallWindow::WallRowMesh(SourceName, SideIndex, FloorIndex, Start, End, FloorBottoms[FloorIndex], FloorHeights[FloorIndex], Style));
+				HeroMeshes.Add(GrammarWallWindow::WallRowMesh(SourceName, SideIndex, FloorIndex, Start, End, Normal, FloorBottoms[FloorIndex], FloorHeights[FloorIndex], Style, Openings));
 			}
 		}
 		else
 		{
-			HeroMeshes.Add(GrammarWallWindow::WallMesh(SourceName, SideIndex, Start, End, TotalHeight, Style, SourceName));
+			HeroMeshes.Add(GrammarWallWindow::WallMesh(SourceName, SideIndex, Start, End, Normal, TotalHeight, Style, SourceName, Openings));
 		}
 
-		const bool bDoorApplies = GrammarEngineInternal::DoorApplies(Style, SideIndex, StreetSideIndex, Tags);
 		if (bDoorApplies)
 		{
 			Placements.Add(GrammarDoor::DoorPlacement(Start, End, Normal, DoorOffset, FloorHeights[0], Style));

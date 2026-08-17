@@ -2,19 +2,29 @@
 #include "PCGContext.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGSplineData.h"
 #include "Metadata/PCGMetadata.h"
 #include "GrammarKitResolver.h"
 #include "PCGBuildingGrammarDefaults.h"
 #include "UObject/SoftObjectPath.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/RotationMatrix.h"
+#include "Config/DoorStyleConfig.h"
 
 namespace
 {
 	const FName EdgesPinLabel = TEXT("Edges");
 	const FName StyleInfoPinLabel = TEXT("StyleInfo");
 	const FName BuildingInfoPinLabel = TEXT("BuildingInfo");
+	const FName StreetsPinLabel = TEXT("Streets");
 	const FName PlacementsPinLabel = TEXT("Placements");
+
+	EGrammarDoorPlacement ParseDoorPlacement(const FString& Value)
+	{
+		if (Value == TEXT("EachFacade")) return EGrammarDoorPlacement::EachFacade;
+		if (Value == TEXT("None")) return EGrammarDoorPlacement::None;
+		return EGrammarDoorPlacement::StreetFacing;
+	}
 
 	// Per-building style values actually used for layout -- either read from StyleInfo's row for
 	// this building (if connected and the row exists), or Settings' own fallback values. See this
@@ -29,6 +39,7 @@ namespace
 		double WindowMargin = 0.0;
 		double WindowSillHeight = 0.0;
 		double WindowDepth = 0.0;
+		double WindowRecessDepth = 0.0;
 		double FrameWidth = 0.0;
 		double FrameDepth = 0.0;
 		int32 VerticalMullions = 0;
@@ -39,6 +50,14 @@ namespace
 		double DoorWidth = 0.0;
 		double DoorHeight = 0.0;
 		double DoorDepth = 0.0;
+		double DoorRecessDepth = 0.0;
+		EGrammarDoorPlacement DoorPlacement = EGrammarDoorPlacement::StreetFacing;
+		// Port of FDoorStyleConfig::FrameWidth, used only by WindowOverlapsDoor's clearance formula
+		// below -- distinct from the window's own FrameWidth above. Falls back to classic's own
+		// default (0.12m, converted to cm) whenever StyleInfo is unconnected or has no row, since this
+		// node's Settings has no equivalent flat property (Door.FrameWidth has no wider UI presence
+		// today -- see this class's header comment for why per-style values need StyleInfo at all).
+		double DoorFrameWidth = 12.0;
 
 		// Ledge/Balcony/Shutter -- see FLedgeStyleConfig/FBalconyStyleConfig's own field comments for
 		// what each of these means; no Settings-level fallback exists for any of these (ledges/
@@ -93,10 +112,12 @@ TArray<FPCGPinProperties> UPCGFacadeWindowDoorLayoutSettings::InputPinProperties
 {
 	TArray<FPCGPinProperties> Pins;
 	Pins.Emplace(EdgesPinLabel, EPCGDataType::Point);
-	// Neither is a required pin -- this node works fine without them, falling back to its own
-	// Settings.
+	// None are required pins -- this node works fine without them, falling back to its own Settings
+	// (Streets specifically only affects StreetFacing door placement's edge choice -- see this class's
+	// header comment).
 	Pins.Emplace(StyleInfoPinLabel, EPCGDataType::Param);
 	Pins.Emplace(BuildingInfoPinLabel, EPCGDataType::Param);
+	Pins.Emplace(StreetsPinLabel, EPCGDataType::Spline);
 	return Pins;
 }
 
@@ -138,6 +159,7 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 	const FPCGMetadataAttribute<double>* StyleWindowMarginAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("WindowMargin")) : nullptr;
 	const FPCGMetadataAttribute<double>* StyleWindowSillHeightAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("WindowSillHeight")) : nullptr;
 	const FPCGMetadataAttribute<double>* StyleWindowDepthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("WindowDepth")) : nullptr;
+	const FPCGMetadataAttribute<double>* StyleWindowRecessDepthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("WindowRecessDepth")) : nullptr;
 	const FPCGMetadataAttribute<FString>* StyleWindowMaterialAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<FString>(TEXT("WindowMaterial")) : nullptr;
 	const FPCGMetadataAttribute<FVector4>* StyleWindowColorAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<FVector4>(TEXT("WindowColor")) : nullptr;
 	const FPCGMetadataAttribute<double>* StyleWindowFrameWidthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("WindowFrameWidth")) : nullptr;
@@ -154,8 +176,11 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 	const FPCGMetadataAttribute<double>* StyleDoorWidthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("DoorWidth")) : nullptr;
 	const FPCGMetadataAttribute<double>* StyleDoorHeightAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("DoorHeight")) : nullptr;
 	const FPCGMetadataAttribute<double>* StyleDoorDepthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("DoorDepth")) : nullptr;
+	const FPCGMetadataAttribute<double>* StyleDoorRecessDepthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("DoorRecessDepth")) : nullptr;
 	const FPCGMetadataAttribute<FString>* StyleDoorMaterialAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<FString>(TEXT("DoorMaterial")) : nullptr;
 	const FPCGMetadataAttribute<FVector4>* StyleDoorColorAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<FVector4>(TEXT("DoorColor")) : nullptr;
+	const FPCGMetadataAttribute<FString>* StyleDoorPlacementAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<FString>(TEXT("DoorPlacement")) : nullptr;
+	const FPCGMetadataAttribute<double>* StyleDoorFrameWidthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("DoorFrameWidth")) : nullptr;
 
 	const FPCGMetadataAttribute<bool>* StyleLedgeEnabledAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<bool>(TEXT("LedgeEnabled")) : nullptr;
 	const FPCGMetadataAttribute<double>* StyleLedgeDepthAttr = StyleMetadata ? StyleMetadata->GetConstTypedAttribute<double>(TEXT("LedgeDepth")) : nullptr;
@@ -193,6 +218,28 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 	const UPCGMetadata* InfoMetadata = BuildingInfo ? BuildingInfo->ConstMetadata() : nullptr;
 	const FPCGMetadataAttribute<int32>* LevelsAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<int32>(TEXT("Levels")) : nullptr;
 	const FPCGMetadataAttribute<double>* TotalHeightAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<double>(TEXT("TotalHeight")) : nullptr;
+	const FPCGMetadataAttribute<FString>* TagsJsonAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<FString>(TEXT("TagsJson")) : nullptr;
+
+	// Gathered once (not per building) -- see UPCGFacadePatternStreetDetailLayoutSettings' identical
+	// gathering for why (the street network is shared graph-wide, not per-building data).
+	TArray<FStreetSegment> StreetSegments;
+	for (const FPCGTaggedData& StreetData : Context->InputData.GetInputsByPin(StreetsPinLabel))
+	{
+		const UPCGSplineData* StreetSpline = Cast<UPCGSplineData>(StreetData.Data.Get());
+		if (!StreetSpline)
+		{
+			continue;
+		}
+		const FString StreetName = ExtractStreetNameFromTags(StreetData.Tags);
+		const TArray<FSplinePoint> StreetPoints = StreetSpline->GetSplinePoints();
+		for (int32 Index = 0; Index + 1 < StreetPoints.Num(); ++Index)
+		{
+			FStreetSegment& Segment = StreetSegments.AddDefaulted_GetRef();
+			Segment.Start = StreetPoints[Index].Position;
+			Segment.End = StreetPoints[Index + 1].Position;
+			Segment.Name = StreetName;
+		}
+	}
 
 	const TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(EdgesPinLabel);
 	for (const FPCGTaggedData& Input : Inputs)
@@ -211,6 +258,9 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 			continue;
 		}
 
+		const FString SourceName = ExtractSourceNameFromTags(Input.Tags);
+		const int64 InfoEntryKey = BuildingInfo ? BuildingInfo->FindMetadataKey(FName(*SourceName)) : INDEX_NONE;
+
 		// This building's own OSM-derived Levels/TotalHeight (see
 		// UPCGLoadOsmBuildingVolumesSettings' header comment) if BuildingInfo is connected and has a
 		// usable row, else this node's own flat FloorCount/FloorHeight -- see this class's header
@@ -218,25 +268,40 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 		// pre-existing uniform-floor-height assumption.
 		int32 EffectiveFloorCount = Settings->FloorCount;
 		double EffectiveFloorHeight = Settings->FloorHeight;
-		if (BuildingInfo && LevelsAttr && TotalHeightAttr)
+		if (InfoEntryKey != INDEX_NONE && LevelsAttr && TotalHeightAttr)
 		{
-			const int64 InfoEntryKey = BuildingInfo->FindMetadataKey(FName(*ExtractSourceNameFromTags(Input.Tags)));
-			if (InfoEntryKey != INDEX_NONE)
+			const int32 Levels = LevelsAttr->GetValueFromItemKey(InfoEntryKey);
+			const double TotalHeight = TotalHeightAttr->GetValueFromItemKey(InfoEntryKey);
+			if (Levels > 0 && TotalHeight > 0.0)
 			{
-				const int32 Levels = LevelsAttr->GetValueFromItemKey(InfoEntryKey);
-				const double TotalHeight = TotalHeightAttr->GetValueFromItemKey(InfoEntryKey);
-				if (Levels > 0 && TotalHeight > 0.0)
-				{
-					EffectiveFloorCount = Levels;
-					EffectiveFloorHeight = TotalHeight / Levels;
-				}
+				EffectiveFloorCount = Levels;
+				EffectiveFloorHeight = TotalHeight / Levels;
 			}
 		}
+
+		// This building's raw OSM tags (for grammar:disable_ground_entrance below and the
+		// street-facing detection's own tag tiers) -- see UPCGFacadePatternStreetDetailLayoutSettings'
+		// identical use.
+		TMap<FString, FString> Tags;
+		if (InfoEntryKey != INDEX_NONE && TagsJsonAttr)
+		{
+			Tags = DeserializeTagsFromJson(TagsJsonAttr->GetValueFromItemKey(InfoEntryKey));
+		}
+		const bool bGroundEntranceDisabled = [&Tags]
+		{
+			const FString* Disable = Tags.Find(TEXT("grammar:disable_ground_entrance"));
+			if (!Disable)
+			{
+				return false;
+			}
+			const FString Normalized = Disable->TrimStartAndEnd().ToLower();
+			return Normalized == TEXT("1") || Normalized == TEXT("yes") || Normalized == TEXT("true");
+		}();
 
 		// Resolve this building's effective style once -- StyleInfo's row (matched by the
 		// "SourceName:..." tag this data already carries, propagated from
 		// UPCGLoadOsmBuildingVolumesSettings) if present, else this node's own Settings.
-		const int64 StyleEntryKey = StyleInfo ? StyleInfo->FindMetadataKey(FName(*ExtractSourceNameFromTags(Input.Tags))) : INDEX_NONE;
+		const int64 StyleEntryKey = StyleInfo ? StyleInfo->FindMetadataKey(FName(*SourceName)) : INDEX_NONE;
 		const bool bHasStyleRow = (StyleEntryKey != INDEX_NONE);
 
 		FResolvedStyle Style;
@@ -247,6 +312,7 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 		Style.WindowMargin = ResolveValue(StyleWindowMarginAttr, StyleEntryKey, Settings->WindowMargin);
 		Style.WindowSillHeight = ResolveValue(StyleWindowSillHeightAttr, StyleEntryKey, Settings->WindowSillHeight);
 		Style.WindowDepth = ResolveValue(StyleWindowDepthAttr, StyleEntryKey, Settings->WindowDepth);
+		Style.WindowRecessDepth = ResolveValue(StyleWindowRecessDepthAttr, StyleEntryKey, 0.0);
 		Style.FrameWidth = ResolveValue(StyleWindowFrameWidthAttr, StyleEntryKey, Settings->WindowFrameWidth);
 		Style.FrameDepth = ResolveValue(StyleWindowFrameDepthAttr, StyleEntryKey, Settings->WindowFrameDepth);
 		Style.VerticalMullions = ResolveValue(StyleWindowVerticalMullionsAttr, StyleEntryKey, Settings->WindowVerticalMullions);
@@ -257,6 +323,11 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 		Style.DoorWidth = ResolveValue(StyleDoorWidthAttr, StyleEntryKey, Settings->DoorWidth);
 		Style.DoorHeight = ResolveValue(StyleDoorHeightAttr, StyleEntryKey, Settings->DoorHeight);
 		Style.DoorDepth = ResolveValue(StyleDoorDepthAttr, StyleEntryKey, Settings->DoorDepth);
+		Style.DoorRecessDepth = ResolveValue(StyleDoorRecessDepthAttr, StyleEntryKey, 0.0);
+		Style.DoorPlacement = (StyleEntryKey != INDEX_NONE && StyleDoorPlacementAttr)
+			? ParseDoorPlacement(StyleDoorPlacementAttr->GetValueFromItemKey(StyleEntryKey))
+			: (Settings->bAddDoorOnLongestEdge ? EGrammarDoorPlacement::StreetFacing : EGrammarDoorPlacement::None);
+		Style.DoorFrameWidth = ResolveValue(StyleDoorFrameWidthAttr, StyleEntryKey, Style.DoorFrameWidth);
 
 		Style.bLedgeEnabled = ResolveValue(StyleLedgeEnabledAttr, StyleEntryKey, false);
 		Style.LedgeDepth = ResolveValue(StyleLedgeDepthAttr, StyleEntryKey, 0.0);
@@ -297,6 +368,11 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 				Style.ShutterMaterial = FGrammarKitResolver::ResolveMaterial(Style.StyleName, TEXT("shutter"), TEXT("Grammar Facade Shutters"), FLinearColor(0.14, 0.19, 0.14, 1.0));
 			}
 		}
+
+		// Which edge index counts as "street-facing" for a StreetFacing-placement door -- see
+		// PCGBuildingGrammarDefaults.h's DetermineStreetFacingSideIndex and this class's own header
+		// comment. Only actually consulted below if Style.DoorPlacement==StreetFacing.
+		const int32 StreetSideIndex = DetermineStreetFacingSideIndex(Tags, EdgePoints, LengthAttr, StreetSegments, Settings->StreetSearchRadius);
 
 		UPCGPointData* PlacementData = FPCGContext::NewObject_AnyThread<UPCGPointData>(Context);
 		UPCGMetadata* PlacementMetadata = PlacementData->MutableMetadata();
@@ -348,9 +424,13 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 			PlacementData->GetMutablePoints().Add(Point);
 		};
 
-		auto AddPlacement = [&](const FTransform& EdgeTransform, double OffsetAlongEdge, double Width, double Height, double Depth, const TCHAR* Role, double FloorBottom, double BottomOffset, UMaterialInterface* Material)
+		// RecessDepth defaults to 0.0 (unchanged behavior) for callers that aren't a window/door opening
+		// or one of its details -- balconies and ledges are separate facade elements that project from
+		// the flush wall face regardless of whether nearby windows are recessed, so they deliberately
+		// don't pass one.
+		auto AddPlacement = [&](const FTransform& EdgeTransform, double OffsetAlongEdge, double Width, double Height, double Depth, const TCHAR* Role, double FloorBottom, double BottomOffset, UMaterialInterface* Material, double RecessDepth = 0.0)
 		{
-			FVector WorldCenter = EdgeTransform.TransformPosition(FVector(OffsetAlongEdge, Depth * 0.5, 0.0));
+			FVector WorldCenter = EdgeTransform.TransformPosition(FVector(OffsetAlongEdge, Depth * 0.5 - RecessDepth, 0.0));
 			WorldCenter.Z += FloorBottom + BottomOffset + Height * 0.5;
 			MakePlacementPoint(EdgeTransform.GetRotation(), WorldCenter, Width, Height, Depth, Role, Material);
 		};
@@ -422,11 +502,11 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 
 				for (const double Lateral : { -Style.WindowWidth / 2.0 - Style.FrameWidth / 2.0, Style.WindowWidth / 2.0 + Style.FrameWidth / 2.0 })
 				{
-					AddPlacement(EdgeTransform, Offset + Lateral, Style.FrameWidth, FrameHeight, FrameDepthTotal, TEXT("window_frame"), 0.0, FrameBottom, Style.FrameMaterial);
+					AddPlacement(EdgeTransform, Offset + Lateral, Style.FrameWidth, FrameHeight, FrameDepthTotal, TEXT("window_frame"), 0.0, FrameBottom, Style.FrameMaterial, Style.WindowRecessDepth);
 				}
 				for (const double Z : { WindowBottomZ - Style.FrameWidth / 2.0, WindowBottomZ + Style.WindowHeight + Style.FrameWidth / 2.0 })
 				{
-					AddPlacement(EdgeTransform, Offset, FrameSpan, Style.FrameWidth, FrameDepthTotal, TEXT("window_frame"), 0.0, Z - Style.FrameWidth / 2.0, Style.FrameMaterial);
+					AddPlacement(EdgeTransform, Offset, FrameSpan, Style.FrameWidth, FrameDepthTotal, TEXT("window_frame"), 0.0, Z - Style.FrameWidth / 2.0, Style.FrameMaterial, Style.WindowRecessDepth);
 				}
 			}
 
@@ -435,19 +515,19 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 			for (int32 MullionIndex = 0; MullionIndex < Style.VerticalMullions; ++MullionIndex)
 			{
 				const double Lateral = -Style.WindowWidth / 2.0 + Style.WindowWidth * (MullionIndex + 1) / static_cast<double>(Style.VerticalMullions + 1);
-				AddPlacement(EdgeTransform, Offset + Lateral, MullionWidth, Style.WindowHeight, MullionDepth, TEXT("window_mullion"), 0.0, WindowBottomZ, Style.FrameMaterial);
+				AddPlacement(EdgeTransform, Offset + Lateral, MullionWidth, Style.WindowHeight, MullionDepth, TEXT("window_mullion"), 0.0, WindowBottomZ, Style.FrameMaterial, Style.WindowRecessDepth);
 			}
 			for (int32 MullionIndex = 0; MullionIndex < Style.HorizontalMullions; ++MullionIndex)
 			{
 				const double Z = WindowBottomZ + Style.WindowHeight * (MullionIndex + 1) / static_cast<double>(Style.HorizontalMullions + 1);
-				AddPlacement(EdgeTransform, Offset, Style.WindowWidth, MullionWidth, MullionDepth, TEXT("window_mullion"), 0.0, Z - MullionWidth / 2.0, Style.FrameMaterial);
+				AddPlacement(EdgeTransform, Offset, Style.WindowWidth, MullionWidth, MullionDepth, TEXT("window_mullion"), 0.0, Z - MullionWidth / 2.0, Style.FrameMaterial, Style.WindowRecessDepth);
 			}
 
 			if (Style.SillDepth > 0.0 && Style.SillThickness > 0.0)
 			{
 				const double SillWidth = Style.WindowWidth + Style.FrameWidth * 2.5;
 				const double SillBottom = FMath::Max(0.0, WindowBottomZ - Style.SillThickness);
-				AddPlacement(EdgeTransform, Offset, SillWidth, Style.SillThickness, Style.SillDepth, TEXT("window_sill"), 0.0, SillBottom, Style.SillMaterial);
+				AddPlacement(EdgeTransform, Offset, SillWidth, Style.SillThickness, Style.SillDepth, TEXT("window_sill"), 0.0, SillBottom, Style.SillMaterial, Style.WindowRecessDepth);
 			}
 
 			// Port of GrammarWallWindow.cpp's WindowDetailPlacements shutter block -- gated by
@@ -462,22 +542,26 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 				const double ShutterDepth = Style.WindowDepth + 2.5;
 				for (const double Lateral : { -Style.WindowWidth / 2.0 - ShutterWidth / 2.0 - Style.FrameWidth, Style.WindowWidth / 2.0 + ShutterWidth / 2.0 + Style.FrameWidth })
 				{
-					AddPlacement(EdgeTransform, Offset + Lateral, ShutterWidth, ShutterHeight, ShutterDepth, TEXT("shutter"), 0.0, ShutterBottom, Style.ShutterMaterial);
+					AddPlacement(EdgeTransform, Offset + Lateral, ShutterWidth, ShutterHeight, ShutterDepth, TEXT("shutter"), 0.0, ShutterBottom, Style.ShutterMaterial, Style.WindowRecessDepth);
 				}
 			}
 		};
 
-		double LongestLength = 0.0;
-		FTransform LongestEdgeTransform = FTransform::Identity;
-
-		for (const FPCGPoint& EdgePoint : EdgePoints)
+		for (int32 EdgeIndex = 0; EdgeIndex < EdgePoints.Num(); ++EdgeIndex)
 		{
+			const FPCGPoint& EdgePoint = EdgePoints[EdgeIndex];
 			const double Length = LengthAttr->GetValueFromItemKey(EdgePoint.MetadataEntry);
-			if (Length > LongestLength)
-			{
-				LongestLength = Length;
-				LongestEdgeTransform = EdgePoint.Transform;
-			}
+
+			// Port of GrammarEngineInternal::DoorApplies (GrammarEngineInternal.cpp:434-449):
+			// grammar:disable_ground_entrance hard-disables regardless of Placement; else EachFacade
+			// applies to every qualifying edge, StreetFacing only to the one real street-facing edge
+			// (StreetSideIndex, resolved above), None never applies. DoorOffset mirrors classic's own
+			// "door centered on the edge" placement (Length*0.5), same as the old longest-edge code.
+			const double DoorOffset = Length * 0.5;
+			const bool bDoorAppliesThisEdge = Style.bDoorEnabled && !bGroundEntranceDisabled
+				&& Style.DoorPlacement != EGrammarDoorPlacement::None
+				&& (Style.DoorPlacement == EGrammarDoorPlacement::EachFacade || EdgeIndex == StreetSideIndex)
+				&& Length > Style.DoorWidth;
 
 			// Centered window offsets along this edge, porting GrammarWallWindow::WindowOffsets'
 			// centering math (BuildingGrammarCore/Private/Grammar/GrammarWallWindow.cpp) -- this
@@ -506,7 +590,21 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 					for (int32 WindowIndex = 0; WindowIndex < WindowCount; ++WindowIndex)
 					{
 						const double Offset = Start + WindowIndex * Style.WindowSpacing;
-						AddPlacement(EdgePoint.Transform, Offset, Style.WindowWidth, Style.WindowHeight, Style.WindowDepth, TEXT("window"), FloorBottom, Style.WindowSillHeight, Style.WindowMaterial);
+
+						// Port of GrammarEngineInternal::WindowOverlapsDoor (GrammarEngineInternal.cpp:
+						// 451-455): only ground-floor windows are checked against a door placed on this
+						// same edge (a door only ever sits on the ground floor, so floors above never
+						// need this check).
+						if (FloorIndex == 0 && bDoorAppliesThisEdge)
+						{
+							const double Clearance = (Style.WindowWidth + Style.DoorWidth) * 0.5 + FMath::Max(Style.DoorFrameWidth, 0.0);
+							if (FMath::Abs(Offset - DoorOffset) < Clearance)
+							{
+								continue;
+							}
+						}
+
+						AddPlacement(EdgePoint.Transform, Offset, Style.WindowWidth, Style.WindowHeight, Style.WindowDepth, TEXT("window"), FloorBottom, Style.WindowSillHeight, Style.WindowMaterial, Style.WindowRecessDepth);
 						AddWindowDetailPlacements(EdgePoint.Transform, Offset, FloorBottom + Style.WindowSillHeight);
 
 						// Port of BalconyApplies: ground floor (index 0) is always excluded regardless
@@ -533,11 +631,11 @@ bool FPCGFacadeWindowDoorLayoutElement::ExecuteInternal(FPCGContext* Context) co
 					AddPlacement(EdgePoint.Transform, Length * 0.5, Length, LedgeNominalThickness, Style.LedgeDepth, TEXT("ledge"), 0.0, LedgeCenterZ - LedgeNominalThickness * 0.5, Style.LedgeMaterial);
 				}
 			}
-		}
 
-		if (Style.bDoorEnabled && LongestLength > Style.DoorWidth)
-		{
-			AddPlacement(LongestEdgeTransform, LongestLength * 0.5, Style.DoorWidth, Style.DoorHeight, Style.DoorDepth, TEXT("door"), 0.0, 0.0, Style.DoorMaterial);
+			if (bDoorAppliesThisEdge)
+			{
+				AddPlacement(EdgePoint.Transform, DoorOffset, Style.DoorWidth, Style.DoorHeight, Style.DoorDepth, TEXT("door"), 0.0, 0.0, Style.DoorMaterial, Style.DoorRecessDepth);
+			}
 		}
 
 		FPCGTaggedData& PlacementsOut = Context->OutputData.TaggedData.Emplace_GetRef();

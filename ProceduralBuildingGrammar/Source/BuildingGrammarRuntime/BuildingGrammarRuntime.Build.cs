@@ -26,7 +26,10 @@ public class BuildingGrammarRuntime : ModuleRules
 			// BuildingGrammarGeometry.Build.cs already lists for GrammarKitAssetBuilder.cpp's
 			// identical pattern.
 			"MeshDescription",
-			"StaticMeshDescription"
+			"StaticMeshDescription",
+			// UTreeMeshSettings : UDeveloperSettings (TreeMeshSettings.h) -- same dependency
+			// ProceduralRoadsGeometry.Build.cs lists for its own URoadMaterialSettings.
+			"DeveloperSettings"
 		});
 
 		if (Target.bBuildEditor)

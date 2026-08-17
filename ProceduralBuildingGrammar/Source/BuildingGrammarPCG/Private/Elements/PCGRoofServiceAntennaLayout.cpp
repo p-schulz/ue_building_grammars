@@ -12,9 +12,6 @@
 #include "Algo/Reverse.h"
 #include "UObject/SoftObjectPath.h"
 #include "Materials/MaterialInterface.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
 
 namespace
 {
@@ -22,25 +19,6 @@ namespace
 	const FName BuildingInfoPinLabel = TEXT("BuildingInfo");
 	const FName StyleInfoPinLabel = TEXT("StyleInfo");
 	const FName PlacementsPinLabel = TEXT("Placements");
-
-	TMap<FString, FString> DeserializeTagsFromJson(const FString& Json)
-	{
-		TMap<FString, FString> Tags;
-		if (Json.IsEmpty())
-		{
-			return Tags;
-		}
-		TSharedPtr<FJsonObject> JsonObject;
-		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
-		if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
-		{
-			for (const TPair<FString, TSharedPtr<FJsonValue>>& Pair : JsonObject->Values)
-			{
-				Tags.Add(Pair.Key, Pair.Value->AsString());
-			}
-		}
-		return Tags;
-	}
 
 	// Narrow, self-contained approximation of GrammarEngineInternal::StyleTokens+HasAny -- see this
 	// node's own header comment for why (private/non-exported function, and this only needs a
@@ -170,6 +148,8 @@ bool FPCGRoofServiceAntennaLayoutElement::ExecuteInternal(FPCGContext* Context) 
 	const UPCGMetadata* InfoMetadata = BuildingInfo ? BuildingInfo->ConstMetadata() : nullptr;
 	const FPCGMetadataAttribute<FString>* TagsJsonAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<FString>(TEXT("TagsJson")) : nullptr;
 	const FPCGMetadataAttribute<double>* TotalHeightAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<double>(TEXT("TotalHeight")) : nullptr;
+	const FPCGMetadataAttribute<double>* MinHeightAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<double>(TEXT("MinHeight")) : nullptr;
+	const FPCGMetadataAttribute<bool>* HasBuildingPartsAttr = InfoMetadata ? InfoMetadata->GetConstTypedAttribute<bool>(TEXT("HasBuildingParts")) : nullptr;
 
 	const TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(FootprintPinLabel);
 	for (const FPCGTaggedData& Input : Inputs)
@@ -218,6 +198,14 @@ bool FPCGRoofServiceAntennaLayoutElement::ExecuteInternal(FPCGContext* Context) 
 		FString StyleName;
 		TMap<FString, FString> Tags;
 		const int64 InfoEntryKey = BuildingInfo ? BuildingInfo->FindMetadataKey(FName(*SourceName)) : INDEX_NONE;
+
+		// See UPCGRoofFrameGeneratorSettings' identical skip and its own comment on
+		// HasBuildingPartsAttr -- a parent with building:part children gets no roof (and so no
+		// roof-mounted antenna/PV/HVAC placements either) here; each part gets its own.
+		if (InfoEntryKey != INDEX_NONE && HasBuildingPartsAttr && HasBuildingPartsAttr->GetValueFromItemKey(InfoEntryKey))
+		{
+			continue;
+		}
 		if (InfoEntryKey != INDEX_NONE && TagsJsonAttr)
 		{
 			Tags = DeserializeTagsFromJson(TagsJsonAttr->GetValueFromItemKey(InfoEntryKey));
@@ -241,7 +229,8 @@ bool FPCGRoofServiceAntennaLayoutElement::ExecuteInternal(FPCGContext* Context) 
 
 		// This building's own OSM-derived TotalHeight (see UPCGLoadOsmBuildingVolumesSettings'
 		// header comment) if BuildingInfo has a usable row, else this node's own flat EaveHeight --
-		// see this class's header comment.
+		// see this class's header comment. MinHeight is added on top regardless (0 if unavailable) --
+		// see UPCGRoofFrameGeneratorSettings' identical addition for why.
 		double EffectiveEaveHeight = Settings->EaveHeight;
 		if (InfoEntryKey != INDEX_NONE && TotalHeightAttr)
 		{
@@ -249,6 +238,10 @@ bool FPCGRoofServiceAntennaLayoutElement::ExecuteInternal(FPCGContext* Context) 
 			if (TotalHeight > 0.0)
 			{
 				EffectiveEaveHeight = TotalHeight;
+			}
+			if (MinHeightAttr)
+			{
+				EffectiveEaveHeight += MinHeightAttr->GetValueFromItemKey(InfoEntryKey);
 			}
 		}
 

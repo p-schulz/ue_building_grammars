@@ -19,11 +19,20 @@
 //  - "Footprints": one closed UPCGSplineData per building volume (footprint ring, in UE centimeters,
 //    same X=local-North/Y=local-East convention as the rest of this plugin -- see
 //    FLocalTangentPlaneProjection's header comment), tagged with "SourceName:<value>" for downstream
-//    identification/filtering.
+//    identification/filtering. Every point's Z is Volume.MinHeight (converted to cm), not 0 -- this
+//    is the single source of truth this pipeline uses for a building PART's min_height/min_level
+//    offset (port of FBuildingGrammarEngine::ApplyMinHeightOffset -- see
+//    UPCGExtrudeFootprintToWallsSettings' header comment for how this propagates downstream).
 //  - "BuildingInfo": a single UPCGParamData attribute set, one row per building volume (keyed by
-//    SourceName), with SourceName/MinHeight/IsBuildingPart/ParentSourceName/Building/AddrStreet
-//    columns plus a TagsJson column holding every OSM tag as a serialized JSON object, for anything
-//    not covered by the convenience columns. Also Levels/TotalHeight (UE centimeters), computed via
+//    SourceName), with SourceName/MinHeight/IsBuildingPart/ParentSourceName/HasBuildingParts/
+//    Building/AddrStreet columns plus a TagsJson column holding every OSM tag as a serialized JSON
+//    object, for anything not covered by the convenience columns. HasBuildingParts is true for a
+//    volume that is itself the PARENT of one or more building:part children (the converse of
+//    IsBuildingPart) -- consumed by the roof-generating nodes to skip a parent's own roof (see
+//    UPCGRoofFrameGeneratorSettings' header comment) now that Config.bSkipParentFootprintsWithParts
+//    defaults to false here (see this class's own constructor), so a parent whose parts don't fully
+//    tile it still emits a footprint at all, instead of the whole thing being silently dropped. Also
+//    Levels/TotalHeight (UE centimeters), computed via
 //    FGrammarLevels::InferLevels/FloorHeightSequence (BuildingGrammarCore/Public/Grammar/
 //    GrammarLevels.h) -- the SAME function the classic engine calls, reused rather than
 //    reimplemented, called with Style=nullptr (matches its own "Style may be null" contract; this

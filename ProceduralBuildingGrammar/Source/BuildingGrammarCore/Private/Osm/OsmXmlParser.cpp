@@ -42,7 +42,15 @@ bool FOsmDocument::ParseFile(const FString& FilePath, FOsmDocument& OutDocument,
 	{
 		const FString& Tag = Child->GetTag();
 
-		if (Tag == TEXT("node"))
+		if (Tag == TEXT("bounds"))
+		{
+			OutDocument.bHasExplicitBounds = true;
+			OutDocument.BoundsMinLat = FCString::Atod(*Child->GetAttribute(TEXT("minlat")));
+			OutDocument.BoundsMaxLat = FCString::Atod(*Child->GetAttribute(TEXT("maxlat")));
+			OutDocument.BoundsMinLon = FCString::Atod(*Child->GetAttribute(TEXT("minlon")));
+			OutDocument.BoundsMaxLon = FCString::Atod(*Child->GetAttribute(TEXT("maxlon")));
+		}
+		else if (Tag == TEXT("node"))
 		{
 			FOsmNode Node;
 			Node.Id = FCString::Atoi64(*Child->GetAttribute(TEXT("id")));
@@ -88,5 +96,50 @@ bool FOsmDocument::ParseFile(const FString& FilePath, FOsmDocument& OutDocument,
 		}
 	}
 
+	return true;
+}
+
+bool FOsmDocument::GetBounds(double& OutMinLat, double& OutMaxLat, double& OutMinLon, double& OutMaxLon) const
+{
+	if (bHasExplicitBounds)
+	{
+		OutMinLat = BoundsMinLat;
+		OutMaxLat = BoundsMaxLat;
+		OutMinLon = BoundsMinLon;
+		OutMaxLon = BoundsMaxLon;
+		return true;
+	}
+	if (Nodes.Num() == 0)
+	{
+		return false;
+	}
+
+	double MinLat = TNumericLimits<double>::Max();
+	double MaxLat = TNumericLimits<double>::Lowest();
+	double MinLon = TNumericLimits<double>::Max();
+	double MaxLon = TNumericLimits<double>::Lowest();
+	for (const TPair<int64, FOsmNode>& Pair : Nodes)
+	{
+		MinLat = FMath::Min(MinLat, Pair.Value.Lat);
+		MaxLat = FMath::Max(MaxLat, Pair.Value.Lat);
+		MinLon = FMath::Min(MinLon, Pair.Value.Lon);
+		MaxLon = FMath::Max(MaxLon, Pair.Value.Lon);
+	}
+	OutMinLat = MinLat;
+	OutMaxLat = MaxLat;
+	OutMinLon = MinLon;
+	OutMaxLon = MaxLon;
+	return true;
+}
+
+bool FOsmDocument::GetBoundsCenter(double& OutCenterLatitude, double& OutCenterLongitude) const
+{
+	double MinLat, MaxLat, MinLon, MaxLon;
+	if (!GetBounds(MinLat, MaxLat, MinLon, MaxLon))
+	{
+		return false;
+	}
+	OutCenterLatitude = (MinLat + MaxLat) / 2.0;
+	OutCenterLongitude = (MinLon + MaxLon) / 2.0;
 	return true;
 }

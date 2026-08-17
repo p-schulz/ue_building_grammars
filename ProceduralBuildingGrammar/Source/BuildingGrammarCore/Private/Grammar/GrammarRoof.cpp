@@ -2,6 +2,7 @@
 #include "Grammar/GrammarRoofDirection.h"
 #include "Geometry/GrammarRoofFrame.h"
 #include "Geometry/GrammarFace.h"
+#include "Geometry/GrammarRoofSkeleton.h"
 
 namespace
 {
@@ -64,48 +65,50 @@ namespace
 		return MakeRoofMeshSpec(SourceName, Roof, MoveTemp(Vertices), MoveTemp(Faces));
 	}
 
+	// Straight-skeleton hip roof (FGrammarRoofSkeleton) -- a true frustum: every footprint edge
+	// recedes inward at unit speed until it either converges to a ridge/apex point or is capped at
+	// Roof.Height (whichever comes first for that part of the footprint), robustly handling
+	// non-convex (L/T/U-shaped) footprints via the skeleton's own split-event machinery. Replaced
+	// the previous single-ridge-line approximation (still used by GabledRoofMesh, which needs a
+	// straight ridge with vertical gable-end walls -- not what a plain straight skeleton produces).
+	// Tags is unused here (no ridge-direction concept applies -- the skeleton's shape is entirely
+	// determined by the footprint itself) but kept in the signature for a uniform dispatch call.
 	FGrammarMeshSpec HippedRoofMesh(const FString& SourceName, const TArray<FVector2D>& Footprint, double Height, const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags)
 	{
-		TArray<FVector> Base = FGrammarRoofFrameMath::RoofBaseVertices(Footprint, Height, Roof.Overhang);
-		const FGrammarRoofFrame Frame = FGrammarRoofFrameMath::BuildFrame(Base, GrammarRoofDirection::RidgeDirection(Base, Roof, Tags), Height, Height + Roof.Height);
+		(void)Tags;
 
-		const double LongSpan = Frame.MaxLong - Frame.MinLong;
-		const double SideSpan = Frame.MaxSide - Frame.MinSide;
-		if (LongSpan <= SideSpan * 1.25)
+		TArray<FVector> Base = FGrammarRoofFrameMath::RoofBaseVertices(Footprint, Height, Roof.Overhang);
+		TArray<FVector2D> BaseXY;
+		BaseXY.Reserve(Base.Num());
+		for (const FVector& Point : Base)
 		{
+			BaseXY.Add(FVector2D(Point.X, Point.Y));
+		}
+
+		FGrammarRoofSkeleton::FResult Skeleton;
+		if (!FGrammarRoofSkeleton::Build(BaseXY, Roof.Height, Skeleton) || Skeleton.Faces.Num() == 0)
+		{
+			// Degenerate footprint (skeleton couldn't be built at all) -- fall back to Pyramid
+			// rather than emitting no roof.
 			return PyramidRoofMesh(SourceName, Footprint, Height, Roof);
 		}
 
-		const double Inset = FMath::Min(SideSpan * 0.42, LongSpan * 0.24);
-		const FVector RidgeStart = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, Frame.MinLong + Inset, 0.0, Frame.RidgeZ);
-		const FVector RidgeEnd = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, Frame.MaxLong - Inset, 0.0, Frame.RidgeZ);
-
-		TArray<FVector> Vertices = Base;
-		Vertices.Add(RidgeStart);
-		Vertices.Add(RidgeEnd);
-		const int32 RidgeStartIndex = Base.Num();
-		const int32 RidgeEndIndex = Base.Num() + 1;
+		TArray<FVector> Vertices;
+		Vertices.Reserve(Skeleton.Nodes.Num());
+		for (const FGrammarRoofSkeleton::FNode& Node : Skeleton.Nodes)
+		{
+			Vertices.Add(FVector(Node.Position.X, Node.Position.Y, Height + Node.Distance));
+		}
 
 		TArray<FGrammarFace> Faces;
-		const int32 Count = Base.Num();
-		for (int32 Index = 0; Index < Count; ++Index)
+		Faces.Reserve(Skeleton.Faces.Num() + Skeleton.TopRings.Num());
+		for (const FGrammarRoofSkeleton::FFace& Face : Skeleton.Faces)
 		{
-			const int32 NextIndex = (Index + 1) % Count;
-			const double Station = FGrammarRoofFrameMath::AxisValue(FVector2D(Base[Index].X, Base[Index].Y), Frame.Center, Frame.Direction);
-			const double NextStation = FGrammarRoofFrameMath::AxisValue(FVector2D(Base[NextIndex].X, Base[NextIndex].Y), Frame.Center, Frame.Direction);
-
-			if (Station < Frame.MinLong + Inset && NextStation < Frame.MinLong + Inset)
-			{
-				Faces.Add(FGrammarFace({ Index, NextIndex, RidgeStartIndex }));
-			}
-			else if (Station > Frame.MaxLong - Inset && NextStation > Frame.MaxLong - Inset)
-			{
-				Faces.Add(FGrammarFace({ Index, NextIndex, RidgeEndIndex }));
-			}
-			else
-			{
-				Faces.Add(FGrammarFace({ Index, NextIndex, RidgeEndIndex, RidgeStartIndex }));
-			}
+			Faces.Add(FGrammarFace(Face.NodeIndices));
+		}
+		for (const TArray<int32>& TopRing : Skeleton.TopRings)
+		{
+			Faces.Add(FGrammarFace(TopRing));
 		}
 		return MakeRoofMeshSpec(SourceName, Roof, MoveTemp(Vertices), MoveTemp(Faces));
 	}

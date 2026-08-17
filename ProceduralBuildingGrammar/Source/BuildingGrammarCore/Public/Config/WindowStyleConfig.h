@@ -27,6 +27,12 @@ struct BUILDINGGRAMMARCORE_API FWindowStyleConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Window")
 	double Depth = 0.04;
 
+	// How far the wall itself recesses inward around this window (the reveal) before the window's own
+	// Depth/FrameWidth/etc. are measured from that recessed plane -- see GrammarWallRecess.h. 0 keeps
+	// the wall flat (today's behavior) with the window flush against it.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Window")
+	double RecessDepth = 0.10;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Window")
 	FString Material = TEXT("Grammar Glass");
 

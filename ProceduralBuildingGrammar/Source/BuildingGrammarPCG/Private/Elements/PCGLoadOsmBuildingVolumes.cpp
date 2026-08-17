@@ -15,6 +15,18 @@
 UPCGLoadOsmBuildingVolumesSettings::UPCGLoadOsmBuildingVolumesSettings()
 {
 	LoadDefaultGermanBuildingGrammarConfig(Config);
+
+	// Overridden from the loaded config's own value (which defaults to true, matching classic's own
+	// default -- this only changes THIS node's own Config instance, not the shared default any other
+	// caller of FBuildingPartResolver gets). With bSkipParentFootprintsWithParts left true, a
+	// `building` way's ENTIRE footprint is dropped the moment it has any matched `building:part`
+	// child, even if those parts don't fully tile it -- leaving a hole rather than an overlap. PCG
+	// instead emits both the parent and its parts and relies on
+	// UPCGExtrudeFootprintToWallsSettings::bSuppressOverlappingWalls to reconcile the overlap between
+	// them (a building:part's own walls always win over its parent's), which also correctly fills in
+	// whatever part of the parent's footprint its parts don't cover -- see that node's own header
+	// comment for the full algorithm.
+	Config.bSkipParentFootprintsWithParts = false;
 }
 
 namespace
@@ -50,11 +62,21 @@ namespace
 			return nullptr;
 		}
 
+		// Baking MinHeight into the footprint's own Z (instead of 0.0) is the single source of truth
+		// this pipeline uses for FBuildingGrammarEngine::ApplyMinHeightOffset's port (see this node's
+		// header comment) -- UPCGExtrudeFootprintToWallsSettings extrudes from Start.Z/End.Z rather
+		// than an assumed 0.0, so a building part's walls (and, via the "Edges" pin's Transform
+		// location, its windows/doors/facade-pattern detail) automatically start at the right
+		// elevation with no further change needed in those nodes. Roof-generating nodes take
+		// EaveHeight as an independent absolute Z (they only read the footprint's X/Y, never its Z),
+		// so they need their own explicit MinHeight read from this same BuildingInfo output instead.
+		const double MinHeightUnrealUnits = Volume.MinHeight * MetersToUnrealUnits;
+
 		TArray<FSplinePoint> SplinePoints;
 		SplinePoints.Reserve(Ring.Num());
 		for (int32 Index = 0; Index < Ring.Num(); ++Index)
 		{
-			const FVector Position(Ring[Index].X * MetersToUnrealUnits, Ring[Index].Y * MetersToUnrealUnits, 0.0);
+			const FVector Position(Ring[Index].X * MetersToUnrealUnits, Ring[Index].Y * MetersToUnrealUnits, MinHeightUnrealUnits);
 			SplinePoints.Add(FSplinePoint(static_cast<float>(Index), Position, ESplinePointType::Linear));
 		}
 
@@ -98,12 +120,34 @@ bool FPCGLoadOsmBuildingVolumesElement::ExecuteInternal(FPCGContext* Context) co
 		return true;
 	}
 
+	// Every SourceName that appears as some OTHER volume's ParentSourceName -- i.e. every volume that
+	// HAS at least one building:part child. Computed once up front so HasBuildingPartsAttr (below)
+	// can be set correctly regardless of a volume's position in Volumes relative to its children.
+	// Consumed by UPCGRoofFrameGeneratorSettings to skip generating a roof for a parent that has
+	// parts -- see this node's own header comment (Config.bSkipParentFootprintsWithParts=false) and
+	// that node's own header comment for why: walls are reconciled per-edge by
+	// UPCGExtrudeFootprintToWallsSettings' overlap suppression, but nothing does the equivalent for
+	// roofs yet, so a parent's own roof would otherwise render in full, overlapping every part's own
+	// roof wherever they coincide in plan view -- reverting to no-roof-for-the-parent (matching this
+	// node's old, still-current-for-classic bSkipParentFootprintsWithParts=true behavior) avoids that
+	// regression rather than trading a missing-wall hole for a duplicated-roof overlap.
+	TSet<FString> ParentsWithChildren;
+	ParentsWithChildren.Reserve(Volumes.Num());
+	for (const FGrammarBuildingVolume& Volume : Volumes)
+	{
+		if (Volume.bIsBuildingPart && !Volume.ParentSourceName.IsEmpty())
+		{
+			ParentsWithChildren.Add(Volume.ParentSourceName);
+		}
+	}
+
 	UPCGParamData* BuildingInfo = FPCGContext::NewObject_AnyThread<UPCGParamData>(Context);
 	UPCGMetadata* InfoMetadata = BuildingInfo->MutableMetadata();
 	FPCGMetadataAttribute<FString>* SourceNameAttr = InfoMetadata->CreateAttribute<FString>(TEXT("SourceName"), FString(), false, false);
 	FPCGMetadataAttribute<double>* MinHeightAttr = InfoMetadata->CreateAttribute<double>(TEXT("MinHeight"), 0.0, false, false);
 	FPCGMetadataAttribute<bool>* IsBuildingPartAttr = InfoMetadata->CreateAttribute<bool>(TEXT("IsBuildingPart"), false, false, false);
 	FPCGMetadataAttribute<FString>* ParentSourceNameAttr = InfoMetadata->CreateAttribute<FString>(TEXT("ParentSourceName"), FString(), false, false);
+	FPCGMetadataAttribute<bool>* HasBuildingPartsAttr = InfoMetadata->CreateAttribute<bool>(TEXT("HasBuildingParts"), false, false, false);
 	FPCGMetadataAttribute<FString>* BuildingAttr = InfoMetadata->CreateAttribute<FString>(TEXT("Building"), FString(), false, false);
 	FPCGMetadataAttribute<FString>* AddrStreetAttr = InfoMetadata->CreateAttribute<FString>(TEXT("AddrStreet"), FString(), false, false);
 	FPCGMetadataAttribute<FString>* TagsJsonAttr = InfoMetadata->CreateAttribute<FString>(TEXT("TagsJson"), FString(), false, false);
@@ -128,6 +172,7 @@ bool FPCGLoadOsmBuildingVolumesElement::ExecuteInternal(FPCGContext* Context) co
 		MinHeightAttr->SetValue(EntryKey, Volume.MinHeight);
 		IsBuildingPartAttr->SetValue(EntryKey, Volume.bIsBuildingPart);
 		ParentSourceNameAttr->SetValue(EntryKey, Volume.ParentSourceName);
+		HasBuildingPartsAttr->SetValue(EntryKey, ParentsWithChildren.Contains(Volume.SourceName));
 		if (const FString* BuildingValue = Volume.VolumeTags.Find(TEXT("building")))
 		{
 			BuildingAttr->SetValue(EntryKey, *BuildingValue);
