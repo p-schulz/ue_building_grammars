@@ -27,8 +27,25 @@ struct FGrammarBoxPlacementParams
 	double Bottom = 0.0;
 };
 
+// Sibling of FGrammarBoxPlacementParams for a box that isn't upright -- full 3D Center plus two
+// full 3D axes (WidthAxis = local X, SlopeAxis = local Y; the box's local Z/thickness direction
+// falls out of MakeFromXY the same way MakeBoxPlacement's does) instead of a 2D Tangent/Normal +
+// separate Bottom scalar. Used for gable-fronted dormer roof slabs (see DormerPlacements), which
+// tilt away from horizontal -- MakeBoxPlacement itself is left untouched since every one of its
+// 100+ existing upright callers has no need for this.
+struct FGrammarTiltedBoxPlacementParams
+{
+	FVector Center = FVector::ZeroVector;
+	FVector WidthAxis = FVector(1.0, 0.0, 0.0);
+	FVector SlopeAxis = FVector(0.0, 1.0, 0.0);
+	double Width = 1.0;
+	double Depth = 1.0;
+	double Height = 1.0;
+};
+
 class FGrammarPlacementHelpers
 {
 public:
 	static FGrammarPlacementRecord MakeBoxPlacement(const FString& Role, const FString& VariantKey, const FGrammarBoxPlacementParams& Params, const FLinearColor& Color);
+	static FGrammarPlacementRecord MakeTiltedBoxPlacement(const FString& Role, const FString& VariantKey, const FGrammarTiltedBoxPlacementParams& Params, const FLinearColor& Color);
 };

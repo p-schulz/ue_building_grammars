@@ -200,7 +200,7 @@ bool FPCGRoofDetailLayoutElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		const bool bFlat = (EffectiveRoofType == EGrammarRoofType::Flat);
-		const bool bDormersAllowed = (EffectiveRoofType == EGrammarRoofType::Gabled || EffectiveRoofType == EGrammarRoofType::Hipped);
+		const bool bDormersAllowed = !bFlat;
 
 		// This building's own OSM-derived TotalHeight (see UPCGLoadOsmBuildingVolumesSettings'
 		// header comment) if BuildingInfo is connected and has a usable row, else this node's own
@@ -405,7 +405,7 @@ bool FPCGRoofDetailLayoutElement::ExecuteInternal(FPCGContext* Context) const
 			}
 		}
 
-		// ---- Dormers (+ companion roof window) (DormerPlacements) -- Gabled/Hipped only ----
+		// ---- Dormers (+ companion roof window) (DormerPlacements) -- non-Flat only ----
 		if (Settings->DormerCount > 0 && bDormersAllowed)
 		{
 			const TArray<double> LongPositions = FGrammarRoofFrameMath::DetailPositions(Settings->DormerCount, Frame.MinLong, Frame.MaxLong, 0.25);
@@ -424,6 +424,44 @@ bool FPCGRoofDetailLayoutElement::ExecuteInternal(FPCGContext* Context) const
 
 				const FVector WindowCenter = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, LongValue, SideValue + SideSign * Settings->DormerDepth * 0.52, Z + Settings->DormerHeight * 0.48);
 				MakePlacementPoint(Rotation, WindowCenter, Settings->DormerWidth * 0.45, Settings->DormerHeight * 0.38, 3.5, TEXT("roof_window"), RoofWindowMaterialResolved);
+
+				// Gable-fronted dormer roof: two tilted slabs meeting at a small ridge that runs
+				// from the main roof surface out to the dormer's own gable front, plus an upright
+				// gable-end "fascia" wall filling the triangular gap beneath -- 1:1 port of
+				// GrammarRoofDetails.cpp's DormerPlacements addition (see its comment for the
+				// reasoning), just emitted as PCG points instead of FGrammarPlacementRecords, and
+				// in this pipeline's centimeter units instead of classic's meters.
+				const FVector Outward3D(Outward.X, Outward.Y, 0.0);
+				const double HalfWidth = Settings->DormerWidth * 0.5;
+				// Rise-over-half-width-run of 1.0 -> ~45 degrees -- same hardcoded proportion as
+				// the classic-engine port, no new Settings property for a first pass.
+				constexpr double DormerRoofPitchTangent = 1.0;
+				const double RoofRise = HalfWidth * DormerRoofPitchTangent;
+				const double BodyTopZ = Z + Settings->DormerHeight;
+				const double DormerRidgeZ = BodyTopZ + RoofRise;
+				constexpr double DormerRoofThickness = 7.0;
+
+				for (const double WidthSign : { -1.0, 1.0 })
+				{
+					const FVector RidgeCenter = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, LongValue, SideValue, DormerRidgeZ);
+					const FVector EaveEdgeCenter = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, LongValue + WidthSign * HalfWidth, SideValue, BodyTopZ);
+					FVector SlabWidthAxis = EaveEdgeCenter - RidgeCenter;
+					const double SlopeLength = SlabWidthAxis.Size();
+					if (SlopeLength <= KINDA_SMALL_NUMBER)
+					{
+						continue;
+					}
+					SlabWidthAxis /= SlopeLength;
+
+					const FVector SlabCenter = (RidgeCenter + EaveEdgeCenter) * 0.5 + FVector(0.0, 0.0, DormerRoofThickness * 0.5);
+					const FQuat SlabRotation = FRotationMatrix::MakeFromXY(SlabWidthAxis, Outward3D).ToQuat();
+					MakePlacementPoint(SlabRotation, SlabCenter, SlopeLength, DormerRoofThickness, Settings->DormerDepth, TEXT("dormer_roof"), DormerMaterialResolved);
+				}
+
+				// Slightly overshoots the ridge peak (+5cm) rather than stopping exactly at it --
+				// same "overlap not gap" reasoning as the classic-engine port.
+				const FVector GableCenter = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, LongValue, SideValue + SideSign * Settings->DormerDepth * 0.5, BodyTopZ + (RoofRise + 5.0) * 0.5);
+				MakePlacementPoint(Rotation, GableCenter, Settings->DormerWidth, RoofRise + 5.0, 6.0, TEXT("dormer_gable"), DormerMaterialResolved);
 			}
 		}
 

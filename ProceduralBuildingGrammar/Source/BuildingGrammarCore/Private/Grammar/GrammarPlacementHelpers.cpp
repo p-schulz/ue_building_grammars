@@ -15,3 +15,15 @@ FGrammarPlacementRecord FGrammarPlacementHelpers::MakeBoxPlacement(const FString
 	Record.Transform.SetScale3D(FVector(Params.Width, Params.Depth, Params.Height));
 	return Record;
 }
+
+FGrammarPlacementRecord FGrammarPlacementHelpers::MakeTiltedBoxPlacement(const FString& Role, const FString& VariantKey, const FGrammarTiltedBoxPlacementParams& Params, const FLinearColor& Color)
+{
+	FGrammarPlacementRecord Record;
+	Record.Role = Role;
+	Record.VariantKey = VariantKey;
+	Record.Color = Color;
+	Record.Transform.SetLocation(Params.Center);
+	Record.Transform.SetRotation(FRotationMatrix::MakeFromXY(Params.WidthAxis, Params.SlopeAxis).ToQuat());
+	Record.Transform.SetScale3D(FVector(Params.Width, Params.Depth, Params.Height));
+	return Record;
+}
