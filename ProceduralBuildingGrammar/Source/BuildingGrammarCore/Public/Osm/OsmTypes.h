@@ -11,6 +11,11 @@ struct BUILDINGGRAMMARCORE_API FOsmNode
 	int64 Id = 0;
 	double Lat = 0.0;
 	double Lon = 0.0;
+
+	// A plain OSM <node> is very commonly a standalone tagged feature in its own right (a street
+	// lamp, a bench, a waste bin, ...), not just a vertex referenced by some way's NodeRefs -- see
+	// ParseTagChildren's identical use for FOsmWay/FOsmRelation.
+	TMap<FString, FString> Tags;
 };
 
 struct BUILDINGGRAMMARCORE_API FOsmWay

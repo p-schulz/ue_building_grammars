@@ -52,6 +52,11 @@ TArray<FGrammarStreetSegment> FStreetNetworkAssembler::Assemble(const FOsmDocume
 			Segment.Name = NameValue->TrimStartAndEnd();
 		}
 
+		if (const FString* LitValue = Way.Tags.Find(TEXT("lit")))
+		{
+			Segment.bLit = LitValue->TrimStartAndEnd().ToLower() == TEXT("yes");
+		}
+
 		Result.Add(MoveTemp(Segment));
 	}
 

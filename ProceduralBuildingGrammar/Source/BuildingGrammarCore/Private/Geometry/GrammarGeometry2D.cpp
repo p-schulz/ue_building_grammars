@@ -213,6 +213,41 @@ TArray<double> FGrammarGeometry2D::FloorBottoms(const TArray<double>& FloorHeigh
 	return Bottoms;
 }
 
+TArray<FGrammarGeometry2D::FPolylineSample> FGrammarGeometry2D::PointsAlongPolyline(const TArray<FVector2D>& Polyline, double Spacing, double StartOffset)
+{
+	TArray<FPolylineSample> Samples;
+	if (Polyline.Num() < 2 || Spacing <= 0.0)
+	{
+		return Samples;
+	}
+
+	double NextTargetLength = StartOffset;
+	double AccumulatedLength = 0.0;
+	for (int32 Index = 0; Index + 1 < Polyline.Num(); ++Index)
+	{
+		const FVector2D& SegmentStart = Polyline[Index];
+		const FVector2D& SegmentEnd = Polyline[Index + 1];
+		const double SegmentLength = Distance2D(SegmentStart, SegmentEnd);
+		if (SegmentLength <= GeometryEpsilon)
+		{
+			continue;
+		}
+
+		const FVector2D SegmentTangent = Tangent(SegmentStart, SegmentEnd);
+		while (NextTargetLength <= AccumulatedLength + SegmentLength)
+		{
+			const double DistanceIntoSegment = NextTargetLength - AccumulatedLength;
+			FPolylineSample Sample;
+			Sample.Position = SegmentStart + SegmentTangent * DistanceIntoSegment;
+			Sample.Tangent = SegmentTangent;
+			Samples.Add(Sample);
+			NextTargetLength += Spacing;
+		}
+		AccumulatedLength += SegmentLength;
+	}
+	return Samples;
+}
+
 bool FGrammarGeometry2D::PointInRing(const FVector2D& P, const TArray<FVector2D>& Ring)
 {
 	bool bInside = false;

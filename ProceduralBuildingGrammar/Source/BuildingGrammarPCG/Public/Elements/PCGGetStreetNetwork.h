@@ -19,7 +19,11 @@
 //    a `name` tag.
 //  - "StreetInfo": a single UPCGParamData attribute set, one row per street (keyed by way index),
 //    with a Name column (empty for unnamed ways -- FGrammarStreetSegment/FStreetNetworkAssembler
-//    doesn't currently carry the raw highway=* value, only the extraction rule it implies).
+//    doesn't currently carry the raw highway=* value, only the extraction rule it implies) and a Lit
+//    column (bool, from the way's own `lit` tag -- consumed by
+//    UPCGPlaceStreetLightsAlongLitRoadsSettings to synthesize streetlight placements along roads that
+//    don't have individually-mapped highway=street_lamp nodes, which is the common case in real OSM
+//    data).
 UCLASS(MinimalAPI, BlueprintType, ClassGroup = (Procedural))
 class UPCGGetStreetNetworkSettings : public UPCGSettings
 {

@@ -60,6 +60,8 @@ namespace
 		if (Value == TEXT("Gabled")) return EGrammarRoofType::Gabled;
 		if (Value == TEXT("Hipped")) return EGrammarRoofType::Hipped;
 		if (Value == TEXT("Pyramid")) return EGrammarRoofType::Pyramid;
+		if (Value == TEXT("Gambrel")) return EGrammarRoofType::Gambrel;
+		if (Value == TEXT("Mansard")) return EGrammarRoofType::Mansard;
 		return EGrammarRoofType::Flat;
 	}
 

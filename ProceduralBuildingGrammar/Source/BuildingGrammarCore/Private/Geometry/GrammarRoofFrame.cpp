@@ -134,9 +134,14 @@ double FGrammarRoofFrameMath::RoofSurfaceZ(double LongValue, double SideValue, c
 
 FVector FGrammarRoofFrameMath::RidgeProjection(const FVector2D& Point, const FGrammarRoofFrame& Frame)
 {
+	return ProjectAtSideAndHeight(Point, Frame, 0.0, Frame.RidgeZ);
+}
+
+FVector FGrammarRoofFrameMath::ProjectAtSideAndHeight(const FVector2D& Point, const FGrammarRoofFrame& Frame, double SideValue, double Z)
+{
 	double Station = AxisValue(Point, Frame.Center, Frame.Direction);
 	Station = FMath::Clamp(Station, Frame.MinLong, Frame.MaxLong);
-	return PointFromRoofAxes(Frame, Station, 0.0, Frame.RidgeZ);
+	return PointFromRoofAxes(Frame, Station, SideValue, Z);
 }
 
 TArray<double> FGrammarRoofFrameMath::DetailPositions(int32 Count, double Minimum, double Maximum, double Inset)

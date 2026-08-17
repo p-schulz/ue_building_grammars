@@ -39,6 +39,8 @@ namespace
 		case EGrammarRoofType::Gabled: return TEXT("gabled");
 		case EGrammarRoofType::Hipped: return TEXT("hipped");
 		case EGrammarRoofType::Pyramid: return TEXT("pyramid");
+		case EGrammarRoofType::Gambrel: return TEXT("gambrel");
+		case EGrammarRoofType::Mansard: return TEXT("mansard");
 		case EGrammarRoofType::Flat:
 		default: return TEXT("flat");
 		}
@@ -290,7 +292,13 @@ namespace GrammarRoofDetails
 		}
 		else
 		{
-			const FVector2D Direction = (Roof.Type == EGrammarRoofType::Gabled || Roof.Type == EGrammarRoofType::Hipped)
+			// Every non-Flat type except Pyramid has a real ridge/long-axis concept (Gabled/Hipped
+			// already did before Gambrel/Mansard existed -- Hipped's own mesh doesn't use ridge
+			// direction at all, but its DETAIL placement frame always has, per this function's
+			// existing "one idealized gable cross-section regardless of actual roof shape"
+			// approximation -- see FGrammarRoofFrame's own header comment). Pyramid's apex is a
+			// single point with no meaningful direction, so it alone falls back to LongestAxisDirection.
+			const FVector2D Direction = (Roof.Type != EGrammarRoofType::Pyramid)
 				? GrammarRoofDirection::RidgeDirection(Base, Roof, Tags)
 				: FGrammarGeometry2D::LongestAxisDirection(ToXY(Base));
 			Frame = FGrammarRoofFrameMath::BuildFrame(Base, Direction, Height, Height + Roof.Height);

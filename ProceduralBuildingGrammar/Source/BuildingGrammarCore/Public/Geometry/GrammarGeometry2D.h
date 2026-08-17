@@ -22,6 +22,16 @@ public:
 		FVector2D End = FVector2D::ZeroVector;
 	};
 
+	// One evenly-spaced sample produced by PointsAlongPolyline below.
+	struct FPolylineSample
+	{
+		FVector2D Position = FVector2D::ZeroVector;
+
+		// Unit tangent of whichever segment this sample falls on (Tangent(Start,End) of that
+		// segment) -- ZeroVector only if that segment itself is degenerate (zero-length).
+		FVector2D Tangent = FVector2D::ZeroVector;
+	};
+
 	// Removes consecutive duplicate points (by XY) and drops a final point that duplicates the
 	// first (closes-the-loop redundancy), matching clean_footprint's dedupe behavior.
 	static TArray<FVector2D> CleanFootprint(const TArray<FVector2D>& Footprint);
@@ -78,4 +88,12 @@ public:
 
 	// Cumulative prefix sum of floor heights -- floor 0 starts at Z=0 (_floor_bottoms).
 	static TArray<double> FloorBottoms(const TArray<double>& FloorHeights);
+
+	// Walks Polyline's own OPEN-path segments (Points[0]->Points[1], Points[1]->Points[2], ..., NOT
+	// treated as a closed ring, unlike GetSegments/LongestAxisDirection above), accumulating arc
+	// length, and returns one sample every Spacing meters -- first sample at StartOffset meters in,
+	// next at StartOffset+Spacing, and so on until the polyline's total length is exhausted. Used for
+	// evenly-spaced placement along an open way (e.g. streetlights along a lit road). Empty if
+	// Polyline has fewer than 2 points or Spacing <= 0.
+	static TArray<FPolylineSample> PointsAlongPolyline(const TArray<FVector2D>& Polyline, double Spacing, double StartOffset = 0.0);
 };

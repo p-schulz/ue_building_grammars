@@ -7,6 +7,7 @@
 #include "Geometry/GrammarPolygonTriangulator.h"
 #include "Geometry/GrammarFace.h"
 #include "Geometry/GrammarRoofSkeleton.h"
+#include "Geometry/GrammarGeometry2D.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
@@ -29,6 +30,8 @@ namespace
 		if (Value == TEXT("Gabled")) return EGrammarRoofType::Gabled;
 		if (Value == TEXT("Hipped")) return EGrammarRoofType::Hipped;
 		if (Value == TEXT("Pyramid")) return EGrammarRoofType::Pyramid;
+		if (Value == TEXT("Gambrel")) return EGrammarRoofType::Gambrel;
+		if (Value == TEXT("Mansard")) return EGrammarRoofType::Mansard;
 		return EGrammarRoofType::Flat;
 	}
 
@@ -594,6 +597,146 @@ bool FPCGRoofFrameGeneratorElement::ExecuteInternal(FPCGContext* Context) const
 		case EGrammarRoofType::Pyramid:
 			AppendPyramidRoof();
 			break;
+		case EGrammarRoofType::Gambrel:
+		{
+			// Port of GrammarRoof.cpp's GambrelRoofMesh (BuildingGrammarCore, this branch's shared
+			// counterpart) -- same fixed break-line proportions, same two-stacked-quads-per-edge
+			// construction as the Gabled case above, just with an intermediate line between eave and
+			// ridge instead of going straight there.
+			constexpr double BreakHeightFraction = 0.65;
+			constexpr double BreakSideFraction = 0.35;
+
+			const FVector2D RidgeDirection = ResolveRidgeDirection();
+			const FGrammarRoofFrame Frame = FGrammarRoofFrameMath::BuildFrame(Base, RidgeDirection, EffectiveEaveHeight, EffectiveEaveHeight + Settings->RidgeHeight);
+			const double BreakZ = Frame.EaveZ + (Frame.RidgeZ - Frame.EaveZ) * BreakHeightFraction;
+
+			TArray<FVector> BreakPoints;
+			TArray<FVector> Ridge;
+			BreakPoints.Reserve(Base.Num());
+			Ridge.Reserve(Base.Num());
+			for (const FVector& Point : Base)
+			{
+				const FVector2D Point2D(Point.X, Point.Y);
+				const double SideValue = FGrammarRoofFrameMath::AxisValue(Point2D, Frame.Center, Frame.Normal);
+				const double BreakSide = (SideValue < 0.0 ? Frame.MinSide : Frame.MaxSide) * BreakSideFraction;
+				BreakPoints.Add(FGrammarRoofFrameMath::ProjectAtSideAndHeight(Point2D, Frame, BreakSide, BreakZ));
+				Ridge.Add(FGrammarRoofFrameMath::RidgeProjection(Point2D, Frame));
+			}
+
+			for (int32 Index = 0; Index < Base.Num(); ++Index)
+			{
+				const int32 NextIndex = (Index + 1) % Base.Num();
+				AppendTriangleWithComputedNormal(RoofMesh, Normals, UVs, Base[Index], Base[NextIndex], BreakPoints[NextIndex], TextureScale, Settings->bFlipWinding, Settings->bFlipNormals);
+				AppendTriangleWithComputedNormal(RoofMesh, Normals, UVs, Base[Index], BreakPoints[NextIndex], BreakPoints[Index], TextureScale, Settings->bFlipWinding, Settings->bFlipNormals);
+				AppendTriangleWithComputedNormal(RoofMesh, Normals, UVs, BreakPoints[Index], BreakPoints[NextIndex], Ridge[NextIndex], TextureScale, Settings->bFlipWinding, Settings->bFlipNormals);
+				AppendTriangleWithComputedNormal(RoofMesh, Normals, UVs, BreakPoints[Index], Ridge[NextIndex], Ridge[Index], TextureScale, Settings->bFlipWinding, Settings->bFlipNormals);
+			}
+			break;
+		}
+		case EGrammarRoofType::Mansard:
+		{
+			// Port of GrammarRoof.cpp's MansardRoofMesh (BuildingGrammarCore, this branch's shared
+			// counterpart) -- two straight-skeleton passes, a steep capped lower band then a shallow
+			// uncapped upper deck built from the lower pass's own frozen top ring. Same fixed
+			// proportions as the classic engine's version.
+			constexpr double LowerHeightFraction = 0.6;
+			constexpr double LowerPitchMultiplier = 3.0;
+
+			TArray<FVector2D> BaseXY;
+			BaseXY.Reserve(Base.Num());
+			for (const FVector& Point : Base)
+			{
+				BaseXY.Add(FVector2D(Point.X, Point.Y));
+			}
+
+			const double LowerHeightBudget = Settings->RidgeHeight * LowerHeightFraction;
+			const double LowerCapDistance = LowerHeightBudget / LowerPitchMultiplier;
+
+			FGrammarRoofSkeleton::FResult LowerSkeleton;
+			if (!FGrammarRoofSkeleton::Build(BaseXY, LowerCapDistance, LowerSkeleton) || LowerSkeleton.Faces.Num() == 0)
+			{
+				// Degenerate footprint -- fall back to Pyramid rather than emitting no roof, same as
+				// the Hipped case above.
+				AppendPyramidRoof();
+				break;
+			}
+
+			TArray<FVector> LowerVertices;
+			LowerVertices.Reserve(LowerSkeleton.Nodes.Num());
+			for (const FGrammarRoofSkeleton::FNode& Node : LowerSkeleton.Nodes)
+			{
+				LowerVertices.Add(FVector(Node.Position.X, Node.Position.Y, EffectiveEaveHeight + Node.Distance * LowerPitchMultiplier));
+			}
+
+			auto AppendLowerFace = [&](const TArray<int32>& NodeIndices)
+			{
+				const TArray<int32> Triangles = FGrammarPolygonTriangulator::Triangulate(LowerVertices, FGrammarFace(NodeIndices));
+				for (int32 TriIndex = 0; TriIndex + 2 < Triangles.Num(); TriIndex += 3)
+				{
+					AppendTriangleWithComputedNormal(RoofMesh, Normals, UVs, LowerVertices[Triangles[TriIndex]], LowerVertices[Triangles[TriIndex + 1]], LowerVertices[Triangles[TriIndex + 2]], TextureScale, Settings->bFlipWinding, Settings->bFlipNormals);
+				}
+			};
+
+			for (const FGrammarRoofSkeleton::FFace& Face : LowerSkeleton.Faces)
+			{
+				AppendLowerFace(Face.NodeIndices);
+			}
+
+			if (LowerSkeleton.TopRings.Num() == 0)
+			{
+				// Fully converged before the cap -- nothing left to build an upper deck from.
+				break;
+			}
+
+			const double BreakZ = EffectiveEaveHeight + LowerHeightBudget;
+			const double UpperHeightBudget = FMath::Max(Settings->RidgeHeight - LowerHeightBudget, 0.0);
+
+			for (const TArray<int32>& TopRing : LowerSkeleton.TopRings)
+			{
+				TArray<FVector2D> RingXY;
+				RingXY.Reserve(TopRing.Num());
+				for (const int32 NodeIndex : TopRing)
+				{
+					RingXY.Add(LowerSkeleton.Nodes[NodeIndex].Position);
+				}
+				RingXY = FGrammarGeometry2D::OrientFootprintCCW(RingXY);
+
+				FGrammarRoofSkeleton::FResult UpperSkeleton;
+				const bool bBuiltUpper = RingXY.Num() >= 3 && UpperHeightBudget > 0.0
+					&& FGrammarRoofSkeleton::Build(RingXY, TNumericLimits<double>::Max(), UpperSkeleton)
+					&& UpperSkeleton.Nodes.Num() > 0;
+				if (!bBuiltUpper)
+				{
+					// Degenerate ring or no height left to spend -- close it off flat rather than
+					// dropping it.
+					AppendLowerFace(TopRing);
+					continue;
+				}
+
+				double MaxUpperDistance = 0.0;
+				for (const FGrammarRoofSkeleton::FNode& Node : UpperSkeleton.Nodes)
+				{
+					MaxUpperDistance = FMath::Max(MaxUpperDistance, Node.Distance);
+				}
+				const double UpperPitchMultiplier = MaxUpperDistance > KINDA_SMALL_NUMBER ? UpperHeightBudget / MaxUpperDistance : 0.0;
+
+				TArray<FVector> UpperVertices;
+				UpperVertices.Reserve(UpperSkeleton.Nodes.Num());
+				for (const FGrammarRoofSkeleton::FNode& Node : UpperSkeleton.Nodes)
+				{
+					UpperVertices.Add(FVector(Node.Position.X, Node.Position.Y, BreakZ + Node.Distance * UpperPitchMultiplier));
+				}
+				for (const FGrammarRoofSkeleton::FFace& Face : UpperSkeleton.Faces)
+				{
+					const TArray<int32> Triangles = FGrammarPolygonTriangulator::Triangulate(UpperVertices, FGrammarFace(Face.NodeIndices));
+					for (int32 TriIndex = 0; TriIndex + 2 < Triangles.Num(); TriIndex += 3)
+					{
+						AppendTriangleWithComputedNormal(RoofMesh, Normals, UVs, UpperVertices[Triangles[TriIndex]], UpperVertices[Triangles[TriIndex + 1]], UpperVertices[Triangles[TriIndex + 2]], TextureScale, Settings->bFlipWinding, Settings->bFlipNormals);
+					}
+				}
+			}
+			break;
+		}
 		case EGrammarRoofType::Flat:
 		default:
 		{

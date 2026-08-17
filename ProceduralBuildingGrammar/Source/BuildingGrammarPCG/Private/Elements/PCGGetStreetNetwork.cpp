@@ -81,6 +81,7 @@ bool FPCGGetStreetNetworkElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGParamData* StreetInfo = FPCGContext::NewObject_AnyThread<UPCGParamData>(Context);
 	UPCGMetadata* InfoMetadata = StreetInfo->MutableMetadata();
 	FPCGMetadataAttribute<FString>* NameAttr = InfoMetadata->CreateAttribute<FString>(TEXT("Name"), FString(), false, false);
+	FPCGMetadataAttribute<bool>* LitAttr = InfoMetadata->CreateAttribute<bool>(TEXT("Lit"), false, false, false);
 
 	int32 StreetIndex = 0;
 	for (const FGrammarStreetSegment& Street : Streets)
@@ -98,9 +99,14 @@ bool FPCGGetStreetNetworkElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			StreetData.Tags.Add(FString::Printf(TEXT("Name:%s"), *Street.Name));
 		}
+		// Same prefix-tag convention as "Name:<value>" -- lets a consumer of the "Streets" pin alone
+		// (no need to also wire up and index-correlate the separate "StreetInfo" pin) tell which ways
+		// are lit, e.g. UPCGPlaceStreetLightsAlongLitRoadsSettings.
+		StreetData.Tags.Add(Street.bLit ? TEXT("Lit:true") : TEXT("Lit:false"));
 
 		const int64 EntryKey = StreetInfo->FindOrAddMetadataKey(FName(*FString::Printf(TEXT("Street_%d"), StreetIndex)));
 		NameAttr->SetValue(EntryKey, Street.Name);
+		LitAttr->SetValue(EntryKey, Street.bLit);
 		++StreetIndex;
 	}
 

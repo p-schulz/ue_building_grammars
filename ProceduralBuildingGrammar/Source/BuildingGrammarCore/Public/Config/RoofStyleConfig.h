@@ -9,7 +9,13 @@ enum class EGrammarRoofType : uint8
 	Flat UMETA(DisplayName = "Flat"),
 	Gabled UMETA(DisplayName = "Gabled"),
 	Hipped UMETA(DisplayName = "Hipped"),
-	Pyramid UMETA(DisplayName = "Pyramid")
+	Pyramid UMETA(DisplayName = "Pyramid"),
+	// Barn-style: two slopes per side (steep lower, shallower upper), single ridge -- see
+	// GrammarRoof.cpp's GambrelRoofMesh.
+	Gambrel UMETA(DisplayName = "Gambrel"),
+	// Steep near-vertical lower band on all four sides + a shallower hip/deck above it -- see
+	// GrammarRoof.cpp's MansardRoofMesh.
+	Mansard UMETA(DisplayName = "Mansard")
 };
 
 UENUM(BlueprintType)

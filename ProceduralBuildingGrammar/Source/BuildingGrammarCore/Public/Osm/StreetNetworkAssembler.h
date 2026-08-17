@@ -12,11 +12,17 @@ struct BUILDINGGRAMMARCORE_API FGrammarStreetSegment
 {
 	TArray<FVector2D> Points; // (Lon, Lat) degrees, way order; always >= 2 points
 	FString Name;             // trimmed `name` tag value; empty if the way is unnamed
+
+	// True if this way's own `lit` tag is "yes" -- OSM data very rarely maps individual
+	// highway=street_lamp nodes, so this is the practical signal for "this road has streetlights"
+	// used to synthesize placements along it (see UPCGPlaceStreetLightsAlongLitRoadsSettings).
+	bool bLit = false;
 };
 
 // Extracts OSM highway=* ways as street polylines for roof-ridge street alignment (see
-// Osm/StreetRidgeAlignment.h). Not general-purpose road network extraction -- only what
-// FGrammarStreetAlignment needs: a way's own node polyline and its `name` tag.
+// Osm/StreetRidgeAlignment.h) and PCG's street-network/street-lighting nodes. Not general-purpose
+// road network extraction -- only what those consumers need: a way's own node polyline, its `name`
+// tag, and its `lit` tag.
 class BUILDINGGRAMMARCORE_API FStreetNetworkAssembler
 {
 public:

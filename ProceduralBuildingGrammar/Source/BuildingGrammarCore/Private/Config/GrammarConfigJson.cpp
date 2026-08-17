@@ -258,6 +258,8 @@ namespace
 		if (Lower == TEXT("gabled")) return EGrammarRoofType::Gabled;
 		if (Lower == TEXT("hipped")) return EGrammarRoofType::Hipped;
 		if (Lower == TEXT("pyramid") || Lower == TEXT("pyramidal")) return EGrammarRoofType::Pyramid;
+		if (Lower == TEXT("gambrel")) return EGrammarRoofType::Gambrel;
+		if (Lower == TEXT("mansard")) return EGrammarRoofType::Mansard;
 		return EGrammarRoofType::Flat;
 	}
 
@@ -268,6 +270,8 @@ namespace
 		case EGrammarRoofType::Gabled: return TEXT("gabled");
 		case EGrammarRoofType::Hipped: return TEXT("hipped");
 		case EGrammarRoofType::Pyramid: return TEXT("pyramid");
+		case EGrammarRoofType::Gambrel: return TEXT("gambrel");
+		case EGrammarRoofType::Mansard: return TEXT("mansard");
 		default: return TEXT("flat");
 		}
 	}

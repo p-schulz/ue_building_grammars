@@ -56,6 +56,7 @@ bool FOsmDocument::ParseFile(const FString& FilePath, FOsmDocument& OutDocument,
 			Node.Id = FCString::Atoi64(*Child->GetAttribute(TEXT("id")));
 			Node.Lat = FCString::Atod(*Child->GetAttribute(TEXT("lat")));
 			Node.Lon = FCString::Atod(*Child->GetAttribute(TEXT("lon")));
+			ParseTagChildren(Child, Node.Tags);
 			OutDocument.Nodes.Add(Node.Id, Node);
 		}
 		else if (Tag == TEXT("way"))

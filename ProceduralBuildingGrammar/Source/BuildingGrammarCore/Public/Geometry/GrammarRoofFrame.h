@@ -48,8 +48,15 @@ public:
 	static double RoofSurfaceZ(double LongValue, double SideValue, const FGrammarRoofFrame& Frame);
 
 	// Clamps Point's long-axis station into [MinLong, MaxLong] and projects it onto the ridge line
-	// at RidgeZ (used by the gabled roof-plane mesh, not the detail-placement path above).
+	// at RidgeZ (used by the gabled roof-plane mesh, not the detail-placement path above). Equivalent
+	// to ProjectAtSideAndHeight(Point, Frame, 0.0, Frame.RidgeZ) below.
 	static FVector RidgeProjection(const FVector2D& Point, const FGrammarRoofFrame& Frame);
+
+	// Generalization of RidgeProjection: clamps Point's long-axis station into [MinLong, MaxLong] the
+	// same way, but projects it onto an arbitrary (SideValue, Z) line instead of the fixed ridge
+	// (Side=0, RidgeZ) -- used by the gambrel roof-plane mesh's intermediate break line, which sits
+	// off-center (partway between ridge and eave) at a height between eave and ridge.
+	static FVector ProjectAtSideAndHeight(const FVector2D& Point, const FGrammarRoofFrame& Frame, double SideValue, double Z);
 
 	// Evenly-spaced-with-inset station list along the long axis, reused by dormer/roof-window/
 	// chimney placement. Count<=0 -> empty; degenerate span -> single midpoint.

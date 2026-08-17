@@ -59,6 +59,8 @@ namespace
 		case EGrammarRoofType::Gabled: return TEXT("Gabled");
 		case EGrammarRoofType::Hipped: return TEXT("Hipped");
 		case EGrammarRoofType::Pyramid: return TEXT("Pyramid");
+		case EGrammarRoofType::Gambrel: return TEXT("Gambrel");
+		case EGrammarRoofType::Mansard: return TEXT("Mansard");
 		default: return TEXT("Flat");
 		}
 	}
