@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 #include "Footprint/BuildingFootprint.h"
 
 // Turns a raw FOsmDocument into building footprints: one per building=*/building:part=* way not

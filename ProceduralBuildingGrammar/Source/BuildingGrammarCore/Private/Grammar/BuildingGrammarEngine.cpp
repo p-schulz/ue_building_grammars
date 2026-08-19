@@ -117,7 +117,11 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 	{
 		Roof = Config.Roof;
 	}
-	Roof = GrammarEngineInternal::RoofFromTags(Roof, Tags);
+	// Same DefaultFloorHeight selection FGrammarLevels itself uses (style override if set, else
+	// Config's own) -- reused here so a roof:levels fallback converts to meters on the same
+	// per-floor-height assumption the rest of this building's own floors already use.
+	const double RoofLevelHeight = (PrimaryStyle.bHasDefaultFloorHeight) ? PrimaryStyle.DefaultFloorHeight : Config.DefaultFloorHeight;
+	Roof = GrammarEngineInternal::RoofFromTags(Roof, Tags, RoofLevelHeight);
 
 	const int32 StreetSideIndex = GrammarEngineInternal::StreetFacingSideIndex(Clean, Tags);
 	const TArray<double> FloorBottoms = FGrammarGeometry2D::FloorBottoms(FloorHeights);

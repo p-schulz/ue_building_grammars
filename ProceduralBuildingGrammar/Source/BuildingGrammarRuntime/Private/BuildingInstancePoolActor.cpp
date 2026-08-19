@@ -208,17 +208,11 @@ void ABuildingInstancePoolActor::SetBuildingOverride(const FString& SourceName, 
 	BuildingOverrides.Add(SourceName, Override);
 }
 
-void ABuildingInstancePoolActor::RegenerateFromSource()
+void ABuildingInstancePoolActor::DestroyGeneratedComponents()
 {
-	if (SourceVolumes.Num() == 0)
-	{
-		return;
-	}
-
-	// Tear down this cell's entire generated geometry -- mirrors ReplaceWithBakedAsset's cleanup
-	// reasoning, just without destroying the actor itself. Bucket components are destroyed outright
-	// (not just cleared) since a regenerated cell may no longer use the same (Role, VariantKey) set as
-	// before; AddInstance lazily recreates whichever buckets the new geometry actually needs.
+	// Bucket components are destroyed outright (not just cleared) since a regenerated cell may no
+	// longer use the same (Role, VariantKey) set as before; AddInstance lazily recreates whichever
+	// buckets the new geometry actually needs.
 	for (const TPair<FString, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>>& BucketPair : Buckets)
 	{
 		if (BucketPair.Value)
@@ -236,6 +230,46 @@ void ABuildingInstancePoolActor::RegenerateFromSource()
 	}
 	HeroMaterials.Reset();
 	HeroMaterialKeys.Reset();
+}
+
+void ABuildingInstancePoolActor::BakeToLevelLightweight()
+{
+	if (SourceVolumes.Num() == 0)
+	{
+		return;
+	}
+
+	Modify();
+	DestroyGeneratedComponents();
+	// This world's own instance is already exactly what BakeToLevelLightweight just cleared it to --
+	// nothing to regenerate here until the next load (see PostRegisterAllComponents).
+	bRegeneratedThisWorld = true;
+	MarkPackageDirty();
+}
+
+void ABuildingInstancePoolActor::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+	if (bRegeneratedThisWorld || SourceVolumes.Num() == 0 || Buckets.Num() > 0 || HeroMeshComponent)
+	{
+		return;
+	}
+
+	bRegeneratedThisWorld = true;
+	RegenerateFromSource();
+}
+
+void ABuildingInstancePoolActor::RegenerateFromSource()
+{
+	if (SourceVolumes.Num() == 0)
+	{
+		return;
+	}
+
+	// Tear down this cell's entire generated geometry -- mirrors ReplaceWithBakedAsset's cleanup
+	// reasoning, just without destroying the actor itself.
+	DestroyGeneratedComponents();
 
 	for (const FGrammarBuildingVolume& Volume : SourceVolumes)
 	{

@@ -39,8 +39,11 @@ namespace GrammarEngineInternal
 	FString WallMaterialName(const FString& Base, const FString& Kind, int32 ColorIndex);
 
 	// Applies grammar:roof:* / roof:* OSM tag overrides on top of a base RoofStyleConfig (shape,
-	// height, material, color). Port of grammar.py's _roof_from_tags.
-	FRoofStyleConfig RoofFromTags(const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags);
+	// height, material, color). Port of grammar.py's _roof_from_tags. LevelHeight converts a
+	// roof:levels fallback (a level COUNT, e.g. "2") into meters -- same DefaultFloorHeight
+	// convention FGrammarLevels uses for building:levels, passed in by the caller since this
+	// function otherwise has no access to Config/Style.
+	FRoofStyleConfig RoofFromTags(const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags, double LevelHeight);
 
 	// Applies facade:material/colour OSM tag overrides on top of a base FacadeStyleConfig -- an
 	// explicit facade:colour tag also clears wall color variants (an explicit color always wins

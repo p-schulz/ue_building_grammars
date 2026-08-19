@@ -19,8 +19,9 @@ struct FCanLoadMap;
 // meshes, deleting all generated building pool actors (a teardown workaround -- see
 // OnDeleteAllBuildingPoolsClicked's own comment), importing trees from a GeoJSON tree-cadastre
 // export filtered to a loaded OSM file's own region (see OnImportTreesFromGeoJsonClicked), and
-// toggling the "Pick Building" viewport tool (FBuildingPickEdMode) for post-import per-building
-// customization. See BuildingGrammarEditorModule.cpp for all flows.
+// registering the visible Building Grammar editor mode (FBuildingPickEdMode) for FlexNetwork OSM
+// asset generation and post-import per-building customization. See BuildingGrammarEditorModule.cpp
+// for all flows.
 class FBuildingGrammarEditorModule final : public IModuleInterface
 {
 public:
@@ -46,7 +47,15 @@ private:
 	void OnClearLevelGeoReferenceClicked();
 
 	void OnGenerateFromOsmClicked();
-	void OnBakeToStaticMeshClicked();
+	void OnSaveToStaticMeshesClicked();
+
+	// Batches ABuildingInstancePoolActor::BakeToLevelLightweight (selected pool actors, or every one
+	// in the level if none are selected) -- same target-selection pattern as
+	// OnSaveToStaticMeshesClicked, but clears each pool's derived HISM/hero-mesh data in place instead
+	// of replacing the actor with a baked static mesh asset. See that method's own header comment for
+	// why this is the "lightweight" alternative (no new assets, no mesh-merge/Nanite/lightmap work).
+	void OnBakeToLevelLightweightClicked();
+
 	void OnPickBuildingClicked();
 
 	// Deletes every ABuildingInstancePoolActor in the current editor world (after a confirmation

@@ -50,8 +50,10 @@ AGeoReferenceOriginActor* AGeoReferenceOriginActor::SetInWorld(UWorld* World, do
 	for (TActorIterator<AGeoReferenceOriginActor> It(World); It; ++It)
 	{
 		AGeoReferenceOriginActor* Existing = *It;
+		Existing->Modify();
 		Existing->OriginLatitude = Latitude;
 		Existing->OriginLongitude = Longitude;
+		Existing->MarkPackageDirty();
 		return Existing;
 	}
 
@@ -60,6 +62,7 @@ AGeoReferenceOriginActor* AGeoReferenceOriginActor::SetInWorld(UWorld* World, do
 	{
 		NewActor->OriginLatitude = Latitude;
 		NewActor->OriginLongitude = Longitude;
+		NewActor->MarkPackageDirty();
 	}
 	return NewActor;
 }

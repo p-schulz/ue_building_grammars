@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 
 // One OSM barrier=* way, kept as a raw (Lon, Lat) polyline exactly as read -- not yet projected to
 // local meters (same convention/reasoning as FGrammarStreetSegment; project via the same

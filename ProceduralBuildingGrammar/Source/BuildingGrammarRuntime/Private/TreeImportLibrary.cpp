@@ -3,7 +3,7 @@
 #include "TreeMeshSettings.h"
 #include "Geo/GeoJsonTreeParser.h"
 #include "Geo/LocalTangentPlaneProjection.h"
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 #include "Engine/World.h"
 #include "Engine/EngineTypes.h"
 

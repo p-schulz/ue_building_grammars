@@ -2,7 +2,7 @@
 #include "PCGContext.h"
 #include "PCGParamData.h"
 #include "Metadata/PCGMetadata.h"
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 #include "GeoReferenceOriginActor.h"
 
 namespace

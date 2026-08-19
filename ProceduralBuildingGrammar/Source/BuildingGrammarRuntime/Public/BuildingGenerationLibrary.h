@@ -84,18 +84,20 @@ public:
 	// early rather than continuing to accumulate unbounded memory -- whatever was generated and
 	// saved so far is kept, nothing already on disk is lost.
 	//
-	// bBakeToStaticMeshPerCell (default false): when true, each cell's pool is baked to a single
-	// saved UStaticMesh asset and its pool actor deleted and replaced with a plain AStaticMeshActor
-	// referencing it (ABuildingInstancePoolActor::BakeAndReplace, under that class's
-	// MakeDefaultBakedAssetPath()), immediately after that cell finishes generating -- reduces peak
-	// memory/actor count during a large run. A baked cell is NOT also added to OutPools or the
-	// bSaveAndUnloadPerCell save/reload batching (there is no ABuildingInstancePoolActor left to
-	// save/return once baked); the two options can still be combined freely, they just each apply to
-	// disjoint cells' worth of work within the same run. See BakeToStaticMesh's comment for why baked
-	// geometry keeps its original absolute world-space coordinates (not recentered) and how
-	// per-instance materials survive baking. Can also be applied after the fact to already-generated
-	// pools via the "Bake Generated Buildings to Static Meshes..." Tools-menu action, independent of
-	// this flag.
+	// bBakeToLevelPerCell (default false): when true, each cell's pool has
+	// ABuildingInstancePoolActor::BakeToLevelLightweight() called on it immediately after that cell
+	// finishes generating -- clears its HISM bucket/hero-mesh component data (the bulk of a
+	// generated cell's memory footprint) while keeping SourceVolumes/SourceConfig, so the exact same
+	// geometry regenerates automatically the next time the pool loads (see that method's own
+	// comment). Reduces peak memory during a large run the same way bBakeToStaticMeshPerCell used to,
+	// but synchronously and without creating any new UStaticMesh asset, deleting the pool actor, or
+	// losing per-building edit/regenerate capability -- the pool stays a normal
+	// ABuildingInstancePoolActor and is still added to OutPools (and still eligible for
+	// bSaveAndUnloadPerCell's save/reload batching; the two combine naturally, since a
+	// lightweight-baked pool has less component data to save in the first place). Can also be applied
+	// after the fact to already-generated pools via the "Bake to Level (Lightweight)" Tools-menu
+	// action, independent of this flag. For a permanent, editable-nowhere conversion to a plain static
+	// mesh instead, use "Save to Static Meshes" (ABuildingInstancePoolActor::BakeAndReplace).
 	UFUNCTION(BlueprintCallable, Category = "Building Grammar")
 	static int32 GenerateBuildingsFromOsmFileChunked(
 		const UObject* WorldContextObject,
@@ -108,7 +110,7 @@ public:
 		FName RuntimeGridName = NAME_None,
 		bool bSaveAndUnloadPerCell = false,
 		int32 CellsPerLevelReload = 25,
-		bool bBakeToStaticMeshPerCell = false);
+		bool bBakeToLevelPerCell = false);
 
 	// C++-only overload for callers that want per-cell progress reporting and cancellation (e.g. to
 	// drive a cancellable FScopedSlowTask -- see
@@ -130,7 +132,7 @@ public:
 		FName RuntimeGridName,
 		bool bSaveAndUnloadPerCell,
 		int32 CellsPerLevelReload,
-		bool bBakeToStaticMeshPerCell,
+		bool bBakeToLevelPerCell,
 		TFunctionRef<bool(int32 CellsCompleted, int32 TotalCells)> OnCellCompleted);
 
 	// Shared prologue for every generation entry point in this plugin (this library's own two
@@ -150,4 +152,17 @@ public:
 		const FBuildingGrammarConfig& Config,
 		TArray<FGrammarBuildingVolume>& OutVolumes,
 		FString& OutError);
+
+	// Generates already-projected/resolved building volumes. This is the neutral hand-off used by
+	// editor integrations whose OSM source is not BuildingGrammarCore's file parser (for example a
+	// FlexNetwork UOsmDataAsset). Footprints must be in BuildingGrammar's meter working space and
+	// building-part resolution must already have run. Pools retain the source volumes/config so the
+	// viewport building picker and per-building regeneration keep working exactly like file import.
+	static int32 GenerateBuildingsFromResolvedVolumes(
+		const UObject* WorldContextObject,
+		const TArray<FGrammarBuildingVolume>& Volumes,
+		const FBuildingGrammarConfig& Config,
+		TArray<ABuildingInstancePoolActor*>& OutPools,
+		double CellSize = 10000.0,
+		FName RuntimeGridName = NAME_None);
 };

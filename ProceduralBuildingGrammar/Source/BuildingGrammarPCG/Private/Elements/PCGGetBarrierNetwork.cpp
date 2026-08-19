@@ -4,7 +4,7 @@
 #include "Data/PCGSplineData.h"
 #include "Metadata/PCGMetadata.h"
 #include "Components/SplineComponent.h"
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 #include "Osm/BarrierNetworkAssembler.h"
 #include "Geo/LocalTangentPlaneProjection.h"
 

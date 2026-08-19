@@ -6,16 +6,6 @@
 
 namespace
 {
-	TOptional<double> ParseMetersEither(const TMap<FString, FString>& Tags, const TCHAR* PrimaryKey, const TCHAR* FallbackKey)
-	{
-		TOptional<double> Value = FGrammarTagParsing::ParseMeters(Tags.Find(PrimaryKey));
-		if (!Value.IsSet())
-		{
-			Value = FGrammarTagParsing::ParseMeters(Tags.Find(FallbackKey));
-		}
-		return Value;
-	}
-
 	FString JoinStrings(const TArray<FString>& Parts, const TCHAR* Delimiter)
 	{
 		FString Result;
@@ -265,7 +255,7 @@ namespace GrammarEngineInternal
 		return TOptional<FLinearColor>();
 	}
 
-	FRoofStyleConfig RoofFromTags(const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags)
+	FRoofStyleConfig RoofFromTags(const FRoofStyleConfig& Roof, const TMap<FString, FString>& Tags, double LevelHeight)
 	{
 		FRoofStyleConfig Result = Roof;
 
@@ -298,10 +288,18 @@ namespace GrammarEngineInternal
 			Result.Type = *MappedType;
 		}
 
-		const TOptional<double> RoofHeight = ParseMetersEither(Tags, TEXT("roof:height"), TEXT("roof:levels"));
-		if (RoofHeight.IsSet())
+		// roof:height (meters) takes priority; roof:levels is a level COUNT (e.g. "2" roof levels),
+		// not meters, so it's converted via LevelHeight rather than reused by ParseMetersEither --
+		// that would (and previously did) treat "2" as 2 meters instead of 2 levels' worth of
+		// height, badly under-stating tall attic/mansard-style roofs and producing a Height of
+		// exactly 0.0 for the (fairly common) explicit "roof:levels=0" case.
+		if (const TOptional<double> ExplicitRoofHeight = FGrammarTagParsing::ParseMeters(Tags.Find(TEXT("roof:height"))))
 		{
-			Result.Height = FMath::Max(RoofHeight.GetValue(), 0.0);
+			Result.Height = FMath::Max(ExplicitRoofHeight.GetValue(), 0.0);
+		}
+		else if (const TOptional<int32> RoofLevels = FGrammarTagParsing::ParseIntTag(Tags.Find(TEXT("roof:levels"))))
+		{
+			Result.Height = FMath::Max(RoofLevels.GetValue(), 0) * LevelHeight;
 		}
 
 		FString RoofMaterial;

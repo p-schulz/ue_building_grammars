@@ -152,10 +152,20 @@ TArray<FGrammarBuildingVolume> FBuildingPartResolver::Resolve(const TArray<FBuil
 		Volumes.Reserve(ProjectedFootprints.Num());
 		for (const FBuildingFootprint& Footprint : ProjectedFootprints)
 		{
+			// Despite its "BuildingPartVolume" name, TagsForBuildingPartVolume is really just
+			// "given tags, work out an effective min_height and rewrite height/level tags to match"
+			// -- nothing about it is part-specific, and it's a no-op (returns Tags unchanged, 0.0)
+			// whenever min_height/building:min_height/min_level isn't present, which is the common
+			// case. Applying it here too means a plain (non building:part) `building` way carrying
+			// its own explicit min_height tag -- e.g. a building volume sitting above a passage/
+			// arcade, not decomposed into parts -- is no longer silently ignored.
+			const TPair<TMap<FString, FString>, double> VolumeTagsAndMinHeight = FGrammarPartTags::TagsForBuildingPartVolume(Footprint.Tags, Config);
+
 			FGrammarBuildingVolume Volume;
 			Volume.Footprint = Footprint;
 			Volume.SourceName = Footprint.StableSourceName();
-			Volume.VolumeTags = Footprint.Tags;
+			Volume.VolumeTags = VolumeTagsAndMinHeight.Key;
+			Volume.MinHeight = VolumeTagsAndMinHeight.Value;
 			Volumes.Add(MoveTemp(Volume));
 		}
 		return Volumes;
@@ -194,10 +204,16 @@ TArray<FGrammarBuildingVolume> FBuildingPartResolver::Resolve(const TArray<FBuil
 		{
 			continue;
 		}
+		// Same generalization as the bEnableBuildingParts=false branch above -- a parent/standalone
+		// building can carry its own min_height tag directly (independent of whether it also has
+		// building:part children), and this is a no-op for the common case where it doesn't.
+		const TPair<TMap<FString, FString>, double> VolumeTagsAndMinHeight = FGrammarPartTags::TagsForBuildingPartVolume(Parents[ParentIndex].Tags, Config);
+
 		FGrammarBuildingVolume Volume;
 		Volume.Footprint = Parents[ParentIndex];
 		Volume.SourceName = Parents[ParentIndex].StableSourceName();
-		Volume.VolumeTags = Parents[ParentIndex].Tags;
+		Volume.VolumeTags = VolumeTagsAndMinHeight.Key;
+		Volume.MinHeight = VolumeTagsAndMinHeight.Value;
 		Volumes.Add(MoveTemp(Volume));
 	}
 

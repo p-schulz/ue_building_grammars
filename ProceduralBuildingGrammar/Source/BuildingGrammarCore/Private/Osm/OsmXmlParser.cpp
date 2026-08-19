@@ -1,4 +1,4 @@
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 #include "XmlFile.h"
 #include "XmlNode.h"
 

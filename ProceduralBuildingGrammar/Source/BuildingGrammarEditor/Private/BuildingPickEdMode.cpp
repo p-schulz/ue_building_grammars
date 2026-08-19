@@ -1,4 +1,6 @@
 #include "BuildingPickEdMode.h"
+#include "BuildingGrammarEdModeSettings.h"
+#include "BuildingGrammarEdModeToolkit.h"
 #include "BuildingInstancePoolActor.h"
 #include "Geometry/GrammarGeometry2D.h"
 #include "EditorViewportClient.h"
@@ -6,9 +8,52 @@
 #include "Engine/World.h"
 #include "Engine/HitResult.h"
 #include "CollisionQueryParams.h"
+#include "Toolkits/ToolkitManager.h"
+#include "EditorModeManager.h"
 
 const FEditorModeID FBuildingPickEdMode::ModeID = TEXT("BuildingGrammar.PickBuildingMode");
 FBuildingPickEdMode::FOnBuildingPicked FBuildingPickEdMode::OnBuildingPicked;
+
+void FBuildingPickEdMode::Enter()
+{
+	FEdMode::Enter();
+	if (!Toolkit.IsValid() && UsesToolkits())
+	{
+		Toolkit = MakeShareable(new FBuildingGrammarEdModeToolkit);
+		Toolkit->Init(Owner->GetToolkitHost());
+	}
+}
+
+void FBuildingPickEdMode::Exit()
+{
+	if (Toolkit.IsValid())
+	{
+		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
+		Toolkit.Reset();
+	}
+	FEdMode::Exit();
+}
+
+void FBuildingPickEdMode::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	FEdMode::AddReferencedObjects(Collector);
+	Collector.AddReferencedObject(ModeSettings);
+}
+
+UBuildingGrammarEdModeSettings* FBuildingPickEdMode::GetOrCreateModeSettings() const
+{
+	const UWorld* PreviousWorld = ModeSettings ? ModeSettings->TargetWorld.Get() : nullptr;
+	if (!ModeSettings)
+	{
+		ModeSettings = NewObject<UBuildingGrammarEdModeSettings>(GetTransientPackage(), NAME_None, RF_Transactional);
+	}
+	ModeSettings->TargetWorld = GetWorld();
+	if (ModeSettings->bUseFlexNetworkOsmContext && ModeSettings->TargetWorld.Get() != PreviousWorld)
+	{
+		ModeSettings->LoadFlexNetworkOsmContext();
+	}
+	return ModeSettings;
+}
 
 bool FBuildingPickEdMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {

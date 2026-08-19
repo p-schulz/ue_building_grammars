@@ -7,7 +7,7 @@
 #include "Editor.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 #include "Config/GrammarConfigJson.h"
 #include "BuildingGenerationLibrary.h"
 #include "BuildingInstancePoolActor.h"
@@ -32,16 +32,16 @@
 
 #define LOCTEXT_NAMESPACE "BuildingGrammarEditor"
 
-// This is the plugin's one real, clickable editor entry point (see the Build.cs comment for why
-// it's a plain Tools-menu command rather than an Editor Utility Widget Blueprint asset). It uses
-// UToolMenus' standard "register a startup callback, add items inside it" pattern -- the same
-// shape used throughout Epic's own editor modules -- so items are added once UToolMenus itself is
-// ready rather than racing module load order.
+// Registers both the visible editor mode and the legacy Tools-menu commands. The mode adds the
+// persistent OSM-asset workflow; the menu entries remain useful shortcuts for the original
+// file-based import/bake operations.
 void FBuildingGrammarEditorModule::StartupModule()
 {
-	// bVisible=false keeps this out of the Modes toolbar entirely -- it's only ever activated via the
-	// "Pick Building" Tools-menu entry below (OnPickBuildingClicked).
-	FEditorModeRegistry::Get().RegisterMode<FBuildingPickEdMode>(FBuildingPickEdMode::ModeID, FText(), FSlateIcon(), /*bVisible=*/false);
+	FEditorModeRegistry::Get().RegisterMode<FBuildingPickEdMode>(
+		FBuildingPickEdMode::ModeID,
+		LOCTEXT("BuildingGrammarModeName", "Building Grammar"),
+		FSlateIcon(),
+		/*bVisible=*/true);
 	FBuildingPickEdMode::OnBuildingPicked.AddRaw(this, &FBuildingGrammarEditorModule::HandleBuildingPicked);
 	FEditorDelegates::OnMapLoad.AddRaw(this, &FBuildingGrammarEditorModule::HandleMapLoad);
 
@@ -113,11 +113,17 @@ void FBuildingGrammarEditorModule::RegisterMenus()
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnGeneratePCGClicked)));
 	Section.AddMenuEntry(
-		"BakeToStaticMesh",
-		LOCTEXT("BakeToStaticMesh", "Bake Generated Buildings to Static Meshes..."),
-		LOCTEXT("BakeToStaticMeshTooltip", "Convert each generated building cell (selected pool actors, or every one in the level if none are selected) into one saved UStaticMesh asset, deleting the original pool actor and replacing it with a plain static mesh actor referencing the baked asset"),
+		"SaveToStaticMeshes",
+		LOCTEXT("SaveToStaticMeshes", "Save to Static Meshes"),
+		LOCTEXT("SaveToStaticMeshesTooltip", "Convert each generated building cell (selected pool actors, or every one in the level if none are selected) into one saved UStaticMesh asset, deleting the original pool actor and replacing it with a plain static mesh actor referencing the baked asset"),
 		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked)));
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnSaveToStaticMeshesClicked)));
+	Section.AddMenuEntry(
+		"BakeToLevelLightweight",
+		LOCTEXT("BakeToLevelLightweight", "Bake to Level (Lightweight)"),
+		LOCTEXT("BakeToLevelLightweightTooltip", "Clear each generated building cell's derived HISM/hero-mesh geometry (selected pool actors, or every one in the level if none are selected) in place, keeping its authored source data so it automatically regenerates the next time this level loads. Unlike 'Save to Static Meshes', creates no new assets and keeps per-building edit/regenerate capability -- it only shrinks what's serialized in the meantime."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnBakeToLevelLightweightClicked)));
 	Section.AddMenuEntry(
 		"ImportTreesFromGeoJson",
 		LOCTEXT("ImportTreesFromGeoJson", "Import Trees from GeoJSON..."),
@@ -132,8 +138,8 @@ void FBuildingGrammarEditorModule::RegisterMenus()
 		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnDeleteAllBuildingPoolsClicked)));
 	Section.AddMenuEntry(
 		"PickBuilding",
-		LOCTEXT("PickBuilding", "Pick Building"),
-		LOCTEXT("PickBuildingTooltip", "Toggle a viewport tool for clicking an individual generated building (out of the many merged into a pool actor's shared instances/hero mesh) to view/edit a per-building tag or facade-style override. Click this again, or click empty space, to stop picking."),
+		LOCTEXT("PickBuilding", "Building Grammar Mode"),
+		LOCTEXT("PickBuildingTooltip", "Toggle the Building Grammar editor mode for OSM-asset generation and clicking individual generated buildings to edit their configuration."),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnPickBuildingClicked),
@@ -365,13 +371,14 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 	}
 
 	// Not WP-gated -- unlike bSaveAndUnloadPerCell, this has nothing to do with World Partition; it
-	// just reduces per-cell memory/actor count by baking (and deleting the pool actor in favor of a
-	// plain static mesh actor) immediately instead of leaving it as HISM buckets + a hero mesh
-	// component. Can also be applied afterward via "Bake Generated Buildings to Static Meshes..."
-	// independent of this choice.
-	const bool bBakeToStaticMeshPerCell = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("AskBakeToStaticMesh",
-		"Bake each cell to a static mesh asset as it's generated?\n\n"
-		"Reduces memory/actor count during generation: each cell's pool actor is deleted and replaced with a plain static mesh actor referencing the baked asset. Baked cells lose per-instance HISM culling/streaming and can't be edited as individual instances afterward -- use \"Bake Generated Buildings to Static Meshes...\" later instead if you want to inspect/edit generated buildings first.")) == EAppReturnType::Yes;
+	// just reduces per-cell memory by clearing each cell's HISM buckets + hero mesh component
+	// immediately after it's generated, keeping its source data so it regenerates automatically the
+	// next time the pool loads (see ABuildingInstancePoolActor::BakeToLevelLightweight). Unlike the
+	// permanent "Save to Static Meshes" conversion, the pool actor itself isn't deleted and stays
+	// fully editable/regeneratable afterward -- this only shrinks its footprint during the run.
+	const bool bBakeToLevelPerCell = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("AskBakeToLevel",
+		"Bake each cell to the level (lightweight) as it's generated?\n\n"
+		"Reduces memory during generation: each cell's HISM buckets and hero mesh geometry are cleared right after it's generated, keeping its source data so it regenerates automatically the next time this level loads. Unlike \"Save to Static Meshes\", no new assets are created and the pool actor stays fully editable/regeneratable -- use \"Save to Static Meshes\" later instead if you want a permanent, merged static mesh.")) == EAppReturnType::Yes;
 
 	TArray<ABuildingInstancePoolActor*> Pools;
 	FScopedSlowTask SlowTask(100.0f, LOCTEXT("GeneratingBuildings", "Generating buildings..."));
@@ -381,7 +388,7 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 	const int32 GeneratedCount = UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(
 		World, OsmFilePath, CenterLatitude, CenterLongitude, Config, Pools,
 		/*CellSize=*/10000.0, /*RuntimeGridName=*/NAME_None,
-		bSaveAndUnloadPerCell, /*CellsPerLevelReload=*/25, bBakeToStaticMeshPerCell,
+		bSaveAndUnloadPerCell, /*CellsPerLevelReload=*/25, bBakeToLevelPerCell,
 		[&SlowTask, &bCancelled](int32 CellsCompleted, int32 TotalCells) -> bool
 		{
 			const float WorkThisCell = TotalCells > 0 ? 100.0f / static_cast<float>(TotalCells) : 100.0f;
@@ -410,10 +417,10 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 	FMessageDialog::Open(EAppMsgType::Ok, Message);
 }
 
-// Post-process counterpart to OnGenerateFromOsmClicked's bBakeToStaticMeshPerCell option -- bakes
-// whatever ABuildingInstancePoolActors are already in the level (or just the current selection, if
-// any) whenever the user is ready, decoupled from generation itself.
-void FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked()
+// Permanent counterpart to OnGenerateFromOsmClicked's bBakeToLevelPerCell option -- bakes whatever
+// ABuildingInstancePoolActors are already in the level (or just the current selection, if any) to
+// merged UStaticMesh assets whenever the user is ready, decoupled from generation itself.
+void FBuildingGrammarEditorModule::OnSaveToStaticMeshesClicked()
 {
 	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
 	if (!World)
@@ -446,7 +453,7 @@ void FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked()
 		return;
 	}
 
-	FScopedSlowTask SlowTask(static_cast<float>(Targets.Num()), LOCTEXT("BakingBuildings", "Baking buildings to static meshes..."));
+	FScopedSlowTask SlowTask(static_cast<float>(Targets.Num()), LOCTEXT("SavingBuildings", "Saving buildings to static meshes..."));
 	SlowTask.MakeDialog(/*bShowCancelButton=*/true);
 
 	int32 BakedCount = 0;
@@ -457,7 +464,7 @@ void FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked()
 		{
 			break;
 		}
-		SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("BakingCell", "Baking '{0}'..."), FText::FromString(Pool->GetActorLabel())));
+		SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("SavingCell", "Saving '{0}'..."), FText::FromString(Pool->GetActorLabel())));
 
 		if (ABuildingInstancePoolActor::BakeAndReplace(Pool, Pool->MakeDefaultBakedAssetPath()))
 		{
@@ -470,10 +477,76 @@ void FBuildingGrammarEditorModule::OnBakeToStaticMeshClicked()
 	}
 
 	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
-		LOCTEXT("BakeComplete", "Baked {0} cell(s) to static mesh assets under /Game/GeneratedBuildings/.{1}"),
+		LOCTEXT("SaveComplete", "Saved {0} cell(s) to static mesh assets under /Game/GeneratedBuildings/.{1}"),
 		FText::AsNumber(BakedCount),
 		SkippedCount > 0
-			? FText::Format(LOCTEXT("BakeSkippedSuffix", " {0} had no geometry to bake and were left unchanged."), FText::AsNumber(SkippedCount))
+			? FText::Format(LOCTEXT("SaveSkippedSuffix", " {0} had no geometry to save and were left unchanged."), FText::AsNumber(SkippedCount))
+			: FText::GetEmpty()));
+}
+
+// Lightweight counterpart to OnSaveToStaticMeshesClicked -- see ABuildingInstancePoolActor::
+// BakeToLevelLightweight's own comment for what "lightweight" means here (no new assets, derived
+// geometry regenerates automatically from source data on next load instead of being replaced).
+void FBuildingGrammarEditorModule::OnBakeToLevelLightweightClicked()
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<ABuildingInstancePoolActor*> Targets;
+	if (USelection* Selection = GEditor->GetSelectedActors())
+	{
+		for (FSelectionIterator It(*Selection); It; ++It)
+		{
+			if (ABuildingInstancePoolActor* Pool = Cast<ABuildingInstancePoolActor>(*It))
+			{
+				Targets.Add(Pool);
+			}
+		}
+	}
+	if (Targets.IsEmpty())
+	{
+		for (TActorIterator<ABuildingInstancePoolActor> It(World); It; ++It)
+		{
+			Targets.Add(*It);
+		}
+	}
+
+	if (Targets.IsEmpty())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoPoolsToLightweightBake", "No generated building pool actors found in this level (or in the current selection)."));
+		return;
+	}
+
+	FScopedSlowTask SlowTask(static_cast<float>(Targets.Num()), LOCTEXT("LightweightBakingBuildings", "Baking buildings to level (lightweight)..."));
+	SlowTask.MakeDialog(/*bShowCancelButton=*/true);
+
+	int32 BakedCount = 0;
+	int32 SkippedCount = 0;
+	for (ABuildingInstancePoolActor* Pool : Targets)
+	{
+		if (SlowTask.ShouldCancel())
+		{
+			break;
+		}
+		SlowTask.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("LightweightBakingCell", "Baking '{0}'..."), FText::FromString(Pool->GetActorLabel())));
+
+		if (Pool->SourceVolumes.Num() == 0)
+		{
+			++SkippedCount;
+			continue;
+		}
+		Pool->BakeToLevelLightweight();
+		++BakedCount;
+	}
+
+	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
+		LOCTEXT("LightweightBakeComplete", "Baked {0} cell(s) to the level (lightweight).{1}"),
+		FText::AsNumber(BakedCount),
+		SkippedCount > 0
+			? FText::Format(LOCTEXT("LightweightBakeSkippedSuffix", " {0} had no source data to regenerate from and were left unchanged."), FText::AsNumber(SkippedCount))
 			: FText::GetEmpty()));
 }
 

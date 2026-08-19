@@ -2,7 +2,7 @@
 #include "PCGContext.h"
 #include "Data/PCGPointData.h"
 #include "Metadata/PCGMetadata.h"
-#include "Osm/OsmTypes.h"
+#include "Osm/BuildingGrammarOsmTypes.h"
 #include "Geo/LocalTangentPlaneProjection.h"
 #include "StreetFurnitureMeshSettings.h"
 #include "Engine/StaticMesh.h"

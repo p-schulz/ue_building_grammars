@@ -103,18 +103,33 @@ namespace
 	TArray<FGrammarPlacementRecord> DormerPlacements(const FGrammarRoofFrame& Frame, const FRoofStyleConfig& Roof, EGrammarRoofType RoofType)
 	{
 		TArray<FGrammarPlacementRecord> Result;
-		const int32 Count = FMath::Max(Roof.DormerCount, 0);
-		if (Count <= 0 || RoofType == EGrammarRoofType::Flat)
+		const int32 ConfiguredCount = FMath::Max(Roof.DormerCount, 0);
+		if (ConfiguredCount <= 0 || RoofType == EGrammarRoofType::Flat)
 		{
 			return Result;
 		}
-		const TArray<double> LongPositions = FGrammarRoofFrameMath::DetailPositions(Count, Frame.MinLong, Frame.MaxLong, 0.25);
+		// The style's own DormerCount is an upper appetite, not a guarantee -- the actual count is
+		// capped by how many DormerWidth-wide dormers can fit along this particular building's own
+		// roof long axis (at the same inset DetailPositions itself reserves at each end) without
+		// crowding/overlapping, so a style tuned for wide apartment blocks doesn't cram too many
+		// dormers onto a narrow building using that same style, and vice versa.
+		constexpr double DormerInset = 0.25;
+		const double LongSpan = FMath::Max(Frame.MaxLong - Frame.MinLong, 0.0);
+		const double UsableSpan = LongSpan * (1.0 - 2.0 * DormerInset);
+		constexpr double DormerPitchMultiplier = 1.3;
+		const double DormerPitch = FMath::Max(Roof.DormerWidth * DormerPitchMultiplier, KINDA_SMALL_NUMBER);
+		const int32 FitCount = UsableSpan > 0.0 ? FMath::Max(1, FMath::FloorToInt(UsableSpan / DormerPitch) + 1) : 1;
+		const int32 Count = FMath::Min(ConfiguredCount, FitCount);
+		const TArray<double> LongPositions = FGrammarRoofFrameMath::DetailPositions(Count, Frame.MinLong, Frame.MaxLong, DormerInset);
 		for (int32 Index = 0; Index < LongPositions.Num(); ++Index)
 		{
 			const double LongValue = LongPositions[Index];
 			const double SideSign = (Index % 2 == 0) ? -1.0 : 1.0;
 			const double SideLimit = SideSign < 0.0 ? Frame.MinSide : Frame.MaxSide;
-			const double SideValue = SideLimit * 0.55;
+			// 0.8 (was 0.55) -- pushes the dormer's footprint down-slope, near the actual roof
+			// edge/eave, matching the reference photo's dormers sitting low along the eave line
+			// rather than up near the ridge.
+			const double SideValue = SideLimit * 0.8;
 			const double DormerWidth = Roof.DormerWidth;
 			const double DormerDepth = Roof.DormerDepth;
 			const double DormerHeight = Roof.DormerHeight;
@@ -124,8 +139,12 @@ namespace
 
 			Result.Add(BoxPlacement(TEXT("dormer"), Roof.DormerMaterial, FVector2D(Center.X, Center.Y), Frame.Direction, Outward, DormerWidth, DormerDepth, DormerHeight, Z, Roof.DormerColor));
 
+			// A large glass surface filling most of the dormer body's own front face -- comparable
+			// in proportion to the facade's own windows, per the reference photo -- rather than a
+			// small pane. Sits on the body (below the gable roofline entirely), so enlarging it
+			// can't create the fascia's own out-of-silhouette problem below.
 			const FVector WindowCenter = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, LongValue, SideValue + SideSign * DormerDepth * 0.52, Z + DormerHeight * 0.48);
-			Result.Add(BoxPlacement(TEXT("roof_window"), Roof.RoofWindowMaterial, FVector2D(WindowCenter.X, WindowCenter.Y), Frame.Direction, Outward, DormerWidth * 0.45, 0.035, DormerHeight * 0.38, Z + DormerHeight * 0.3, Roof.RoofWindowColor));
+			Result.Add(BoxPlacement(TEXT("roof_window"), Roof.RoofWindowMaterial, FVector2D(WindowCenter.X, WindowCenter.Y), Frame.Direction, Outward, DormerWidth * 0.75, 0.035, DormerHeight * 0.62, Z + DormerHeight * 0.3, Roof.RoofWindowColor));
 
 			// Gable-fronted dormer roof: two tilted slabs meeting at a small ridge that runs from
 			// the main roof surface out to the dormer's own gable front, plus an upright gable-end
@@ -169,11 +188,21 @@ namespace
 				Result.Add(FGrammarPlacementHelpers::MakeTiltedBoxPlacement(TEXT("dormer_roof"), Roof.DormerMaterial, SlabParams, Roof.DormerColor));
 			}
 
-			// Slightly overshoots the ridge peak (+0.05m, same flat-absolute-bump convention as the
-			// roof-window Z offsets above) rather than stopping exactly at it -- an overlap into the
-			// slabs' undersides is invisible, a gap below them reads as an obvious hole.
-			const FVector GableCenter = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, LongValue, SideValue + SideSign * DormerDepth * 0.5, BodyTopZ + (RoofRise + 0.05) / 2.0);
-			Result.Add(BoxPlacement(TEXT("dormer_gable"), Roof.DormerMaterial, FVector2D(GableCenter.X, GableCenter.Y), Frame.Direction, Outward, DormerWidth, 0.06, RoofRise + 0.05, BodyTopZ, Roof.DormerColor));
+			// The gable-end fascia fills the triangular void under the ridge (apex at LongValue=0,
+			// Z=RidgeZ; base corners at LongValue=+-HalfWidth, Z=BodyTopZ) -- a box the full
+			// DormerWidth wide reaching the full RoofRise tall would have its own top corners
+			// poking out past the sloped roof slabs on both sides (the roofline drops linearly from
+			// RidgeZ at the center to BodyTopZ at the edges, but a full-width flat-topped box
+			// doesn't), producing a square silhouette overshoot beyond the pitched roof outline.
+			// Sized instead as a rectangle inscribed under that triangle (0.42 width fraction stays
+			// safely inside the exact 0.5/0.5 inscribed bound -- h <= RoofRise*(1-w/DormerWidth)),
+			// so it's fully hidden under the slabs from every angle.
+			constexpr double GableFasciaWidthFraction = 0.42;
+			constexpr double GableFasciaHeightFraction = 0.5;
+			const double GableFasciaWidth = DormerWidth * GableFasciaWidthFraction;
+			const double GableFasciaHeight = RoofRise * GableFasciaHeightFraction;
+			const FVector GableCenter = FGrammarRoofFrameMath::PointFromRoofAxes(Frame, LongValue, SideValue + SideSign * DormerDepth * 0.5, BodyTopZ + GableFasciaHeight / 2.0);
+			Result.Add(BoxPlacement(TEXT("dormer_gable"), Roof.DormerMaterial, FVector2D(GableCenter.X, GableCenter.Y), Frame.Direction, Outward, GableFasciaWidth, 0.06, GableFasciaHeight, BodyTopZ, Roof.DormerColor));
 		}
 		return Result;
 	}

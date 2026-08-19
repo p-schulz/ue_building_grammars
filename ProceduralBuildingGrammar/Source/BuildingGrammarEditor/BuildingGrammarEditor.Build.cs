@@ -25,6 +25,9 @@ public class BuildingGrammarEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
+			// The editor mode consumes FlexNetwork's generic UOsmDataAsset and its exact projection
+			// helpers. Core/runtime building modules remain independent of FlexNetwork.
+			"FlexNetworkRuntime",
 			"Slate",
 			"SlateCore",
 			"EditorScriptingUtilities",

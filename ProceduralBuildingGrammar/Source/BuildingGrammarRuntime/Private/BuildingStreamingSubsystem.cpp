@@ -184,6 +184,8 @@ void UBuildingStreamingSubsystem::ActivateCell(const FIntPoint& CellCoord)
 		FString GenerationError;
 		if (!FBuildingGrammarEngine::GenerateBuildingSpec(Volume.Footprint.OuterRing, Volume.VolumeTags, LoadedConfig, Volume.SourceName, Spec, GenerationError))
 		{
+			// See BuildingGenerationLibrary.cpp's identical log -- this was previously silent.
+			UE_LOG(LogTemp, Warning, TEXT("UBuildingStreamingSubsystem: skipped building '%s': %s"), *Volume.SourceName, *GenerationError);
 			continue;
 		}
 		ApplyMinHeightOffset(Spec, Volume.MinHeight);

@@ -4,10 +4,10 @@
 #include "EdMode.h"
 
 class ABuildingInstancePoolActor;
+class UBuildingGrammarEdModeSettings;
 
-// Hidden editor mode (registered with bVisible=false -- see FBuildingGrammarEditorModule::StartupModule
-// -- so it never appears in the Modes toolbar) toggled on/off only via the "Pick Building" Tools-menu
-// entry. Its only real job is HandleClick: figure out which individual building (identified by
+// Building Grammar editor mode. Its toolkit owns OSM-asset/config generation controls while
+// HandleClick figures out which individual building (identified by
 // FGrammarBuildingVolume::SourceName) was actually clicked, out of the many merged into a pool actor's
 // shared HISM buckets/hero mesh -- see BuildingInstancePoolActor.h's own header comment for why
 // individual buildings otherwise lose all identity once generated. Broadcasts the result on a static
@@ -21,5 +21,15 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBuildingPicked, ABuildingInstancePoolActor* /*Pool*/, const FString& /*SourceName*/);
 	static FOnBuildingPicked OnBuildingPicked;
 
+	virtual void Enter() override;
+	virtual void Exit() override;
+	virtual bool UsesToolkits() const override { return true; }
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override { return TEXT("FBuildingPickEdMode"); }
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
+
+	UBuildingGrammarEdModeSettings* GetOrCreateModeSettings() const;
+
+private:
+	mutable TObjectPtr<UBuildingGrammarEdModeSettings> ModeSettings = nullptr;
 };

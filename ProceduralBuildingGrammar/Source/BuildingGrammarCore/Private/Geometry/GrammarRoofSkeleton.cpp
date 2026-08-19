@@ -351,6 +351,13 @@ bool FGrammarRoofSkeleton::Build(const TArray<FVector2D>& Footprint, double MaxD
 	// ---- main simulation loop ----
 
 	double Now = 0.0;
+	// True once the sweep stops for a LEGITIMATE reason: nothing left to simulate, or an event
+	// genuinely landed at/past MaxDistance. False if the `for` loop instead runs out of
+	// MaxIterations -- a safety net for pathological inputs that never cleanly converge (e.g. a
+	// numerically imperfect polygon, such as a straight-skeleton TopRing fed back into a second
+	// Build() call, stuck re-finding near-epsilon events without real progress). See the freeze
+	// step below for why this distinction matters.
+	bool bStoppedLegitimately = false;
 	const int32 MaxIterations = FMath::Max(N * 8 + 64, 256);
 	for (int32 Iteration = 0; Iteration < MaxIterations; ++Iteration)
 	{
@@ -364,6 +371,7 @@ bool FGrammarRoofSkeleton::Build(const TArray<FVector2D>& Footprint, double MaxD
 		}
 		if (Loops.Num() == 0)
 		{
+			bStoppedLegitimately = true;
 			break;
 		}
 
@@ -433,6 +441,7 @@ bool FGrammarRoofSkeleton::Build(const TArray<FVector2D>& Footprint, double MaxD
 
 		if (BestTime == SkelNoEvent || BestTime >= MaxDistance)
 		{
+			bStoppedLegitimately = true;
 			break;
 		}
 		Now = BestTime;
@@ -450,6 +459,17 @@ bool FGrammarRoofSkeleton::Build(const TArray<FVector2D>& Footprint, double MaxD
 	// ---- freeze whatever's still active at MaxDistance into flat-top rings, closing every
 	//      still-open fragment with its frozen (2-point) top ----
 	{
+		// Freezing at MaxDistance is only correct when the sweep legitimately reached it (or fully
+		// converged, in which case no loops remain active and this value is never used below).
+		// If the MaxIterations safety net is what actually stopped the loop above, MaxDistance may
+		// still be TNumericLimits<double>::Max() (the uncapped-skeleton convention -- see this
+		// class's header comment) -- PositionAt(DBL_MAX) with any nonzero velocity would then place
+		// the frozen node astronomically far from the building, in whichever direction that node
+		// happens to be receding (the "roof extrudes toward infinity" failure). Freeze at the last
+		// time actually reached instead, which is always finite and never worse than what the
+		// simulation had already legitimately computed.
+		const double FreezeDistance = bStoppedLegitimately ? MaxDistance : Now;
+
 		TMap<int32, TArray<int32>> RemainingLoops;
 		for (int32 Index = 0; Index < Nodes.Num(); ++Index)
 		{
@@ -490,8 +510,8 @@ bool FGrammarRoofSkeleton::Build(const TArray<FVector2D>& Footprint, double MaxD
 				else
 				{
 					FSkelNode Frozen;
-					Frozen.Origin = Nodes[NodeIndex].PositionAt(MaxDistance);
-					Frozen.Time = MaxDistance;
+					Frozen.Origin = Nodes[NodeIndex].PositionAt(FreezeDistance);
+					Frozen.Time = FreezeDistance;
 					FrozenIndex = Nodes.Add(Frozen);
 					FrozenNodeFor.Add(NodeIndex, FrozenIndex);
 				}

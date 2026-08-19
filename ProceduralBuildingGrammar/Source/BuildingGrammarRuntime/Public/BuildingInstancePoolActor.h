@@ -182,6 +182,30 @@ public:
 	// BucketMaterialKeys/HeroMaterialKeys, which DO survive (plain FString/FLinearColor data).
 	virtual void PostLoad() override;
 
+	// Lightweight counterpart to BakeToStaticMesh/BakeAndReplace, analogous to FlexNetwork's "Bake
+	// Network To Level": creates no new assets and does no mesh-merge/Nanite/lightmap work. Just
+	// destroys this pool's derived HISM bucket and hero-mesh component data -- the per-instance
+	// transform arrays and hero mesh geometry buffers that make up the bulk of what a saved level
+	// actually stores for a generated cell -- while leaving SourceVolumes/SourceConfig/
+	// BuildingOverrides (the small, authored data those components were built from) untouched.
+	// PostRegisterAllComponents rebuilds the exact same geometry via RegenerateFromSource() the next
+	// time this actor loads, the same way AFlexNetworkBakeActor::RestoreToSubsystem reconstructs the
+	// road network from its own small authored snapshot. Unlike BakeToStaticMesh, this keeps full
+	// per-building edit/regenerate capability -- it only shrinks what's serialized in the meantime.
+	// No-op if SourceVolumes is empty (nothing to regenerate from later, e.g. an already-baked-to-
+	// static-mesh cell, or a hand-placed actor with no source data).
+	UFUNCTION(CallInEditor, Category = "Building Grammar", meta = (DisplayName = "Bake to Level (Lightweight)"))
+	void BakeToLevelLightweight();
+
+	// Regenerates from SourceVolumes/SourceConfig exactly once per actor/world instance if this pool
+	// was lightweight-baked (see BakeToLevelLightweight) and hasn't regenerated in this world yet --
+	// mirrors AFlexNetworkBakeActor::PostRegisterAllComponents/RestoreToSubsystem's own once-per-world
+	// restore. A single hook (not also BeginPlay, unlike FlexNetworkBakeActor) is enough here: unlike
+	// FlexNetwork's restore, RegenerateFromSource has no subsystem-readiness ordering to hedge
+	// against -- it only calls into BuildingGrammarCore/BuildingGrammarGeometry, both already usable
+	// as soon as this actor's own components register.
+	virtual void PostRegisterAllComponents() override;
+
 	// Editor-only. Bakes every HISM bucket instance and the hero mesh into one combined UStaticMesh,
 	// saved as a new asset under PackagePath. Geometry keeps this actor's original absolute
 	// world-space coordinates unmodified (deliberately NOT recentered around a local pivot): the
@@ -195,12 +219,12 @@ public:
 	// (no asset created) if this pool has no geometry to bake.
 	//
 	// This is a synchronous, all-on-the-calling-thread composition of ExtractBakeData/
-	// BuildBakedMeshDescription/FinalizeBakedAsset below, for callers (BakeAndReplace, i.e. the
-	// standalone "Bake Generated Buildings to Static Meshes..." menu action) that don't need to
-	// overlap baking with other work. UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked's
-	// bBakeToStaticMeshPerCell path calls the three phases directly instead, so a cell's expensive,
-	// UObject-free merge work (BuildBakedMeshDescription) can run on a background task while the next
-	// cell generates -- see that function's own comment for why.
+	// BuildBakedMeshDescription/FinalizeBakedAsset below -- used by BakeAndReplace, i.e. the
+	// standalone "Save to Static Meshes" menu action. The three phases are still split out
+	// separately below for any caller that wants to overlap the expensive, UObject-free merge work
+	// (BuildBakedMeshDescription) with other work on a background task; nothing currently does (see
+	// BakeToLevelLightweight for the generation-time per-cell memory-reduction option instead, which
+	// needs no such pipelining since it does no mesh-merge work at all).
 	UStaticMesh* BakeToStaticMesh(const FString& PackagePath) const;
 
 	// Phase 1/3 (game thread only -- may create/save persistent color-variant material assets via
@@ -225,10 +249,9 @@ public:
 
 	// Spawns a plain AStaticMeshActor at identity transform referencing BakedMesh (copying over
 	// PoolActor's RuntimeGrid and label), then destroys PoolActor and nulls the caller's pointer to
-	// it -- the actor-swap half of BakeAndReplace, factored out so the pipelined path in
-	// GenerateBuildingsFromOsmFileChunked can call it once a background merge (see
-	// BuildBakedMeshDescription) has finished and been finalized (FinalizeBakedAsset), without going
-	// through BakeAndReplace's own (synchronous) bake step again. Same "this is a safe, genuine
+	// it -- the actor-swap half of BakeAndReplace, factored out so a caller that already has a
+	// finished, finalized bake (see BuildBakedMeshDescription/FinalizeBakedAsset) can apply it without
+	// going through BakeAndReplace's own (synchronous) bake step again. Same "this is a safe, genuine
 	// permanent replacement, not the save-then-unload pattern" reasoning as BakeAndReplace's own
 	// comment. No-op (returns nullptr) if BakedMesh is null.
 	static AStaticMeshActor* ReplaceWithBakedAsset(ABuildingInstancePoolActor*& PoolActor, UStaticMesh* BakedMesh);
@@ -245,9 +268,10 @@ public:
 	static AStaticMeshActor* BakeAndReplace(ABuildingInstancePoolActor*& PoolActor, const FString& PackagePath);
 
 	// Editor-only. A reasonable default BakeToStaticMesh PackagePath:
-	// /Game/GeneratedBuildings/<LevelName>/SM_<SanitizedActorLabel>. Shared by the Tools-menu bake
-	// action and the generation-time bBakeToStaticMeshPerCell option so both use the same
-	// convention; callers are free to pass a different path to BakeToStaticMesh directly instead.
+	// /Game/GeneratedBuildings/<LevelName>/SM_<SanitizedActorLabel>. Used by both the "Save to Static
+	// Meshes" Tools-menu action and BakeAndReplace's own callers so they share one convention;
+	// callers are free to pass a different path to BakeToStaticMesh directly instead. Not used by
+	// BakeToLevelLightweight, which creates no asset and therefore needs no package path.
 	FString MakeDefaultBakedAssetPath() const;
 
 	// Records this cell's resolved volumes/config, so it can later be regenerated on demand (see
@@ -288,6 +312,14 @@ public:
 
 private:
 	static FString MakeBucketKey(const FString& Role, const FString& VariantKey);
+
+	// Shared teardown used by both RegenerateFromSource (which rebuilds right after) and
+	// BakeToLevelLightweight (which deliberately leaves the pool empty until the next load).
+	void DestroyGeneratedComponents();
+
+	// Deliberately not reflected (see AFlexNetworkBakeActor::bRestoredThisWorld for the same
+	// pattern): a PIE duplicate must start false even if the editor instance already regenerated.
+	bool bRegeneratedThisWorld = false;
 
 	UPROPERTY()
 	TMap<FString, TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> Buckets;
