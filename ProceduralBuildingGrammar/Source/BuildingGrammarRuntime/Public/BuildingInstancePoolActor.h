@@ -328,9 +328,46 @@ public:
 	// scratch, not incrementally patched) then regenerates every SourceVolumes entry exactly as the
 	// original generation loop did. No-op if SourceVolumes is empty (nothing to regenerate from, e.g.
 	// a baked-then-replaced cell, or an actor from before this feature existed).
+	//
+	// O(this pool's SourceVolumes.Num()) EVERY call, regardless of how many buildings actually
+	// changed -- an editor caller that invokes this once per interactive edit (place/move/delete one
+	// building at a time) pays for the whole pool's generation on every single edit, which is why a
+	// pool that has accumulated many buildings can make each further edit noticeably slower than the
+	// last. AppendVolume below exists specifically to avoid that cost for the common "just add one new
+	// building, nothing else changed" case; this method remains the only correct option whenever an
+	// EXISTING building's own footprint/tags/override changed or a building was removed, since HISM
+	// buckets have no per-building partial removal/replace.
 	void RegenerateFromSource();
 
+	// Same as RegenerateFromSource(), but calls OnVolumeCompleted once after each SourceVolumes entry
+	// finishes (VolumesCompleted, SourceVolumes.Num(), that volume's SourceName) -- lets a caller drive
+	// a cancellable FScopedSlowTask the same way
+	// UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked's OnCellCompleted callback does.
+	// Not a UFUNCTION (TFunctionRef isn't Blueprint-compatible) -- same reasoning as that function's
+	// own split into a plain Blueprint-facing overload plus this progress-reporting one. Returning
+	// false from the callback stops regeneration before the next volume starts; whatever already
+	// regenerated stays applied, matching that same function's "not rolled back" contract.
+	void RegenerateFromSource(TFunctionRef<bool(int32 VolumesCompleted, int32 TotalVolumes, const FString& CurrentSourceName)> OnVolumeCompleted);
+
+	// Generates and appends exactly one building -- Volume, which must already be present in
+	// SourceVolumes (the caller adds it there first, e.g. via SourceVolumes.Add, so a save/reload
+	// still has it for a later RegenerateFromSource) -- onto this pool's EXISTING components, without
+	// touching or regenerating any other building already in the pool. O(1) relative to pool size,
+	// unlike RegenerateFromSource's full teardown+rebuild-everything, so placing N new buildings one at
+	// a time costs O(N) total instead of O(N^2). Only safe for a genuinely new building with no prior
+	// geometry of its own to replace -- see RegenerateFromSource's own comment for why any edit to an
+	// EXISTING building still needs that method instead. Returns false (nothing applied, caller should
+	// remove Volume from SourceVolumes again) if generation fails, e.g. a degenerate footprint.
+	bool AppendVolume(const FGrammarBuildingVolume& Volume);
+
 private:
+	// Shared by RegenerateFromSource and AppendVolume: resolves Volume's effective (Tags, Config) --
+	// this building's own VolumeTags/SourceConfig with its BuildingOverrides entry (if any) applied --
+	// and generates+applies its spec into this pool's existing components. Does not call
+	// FlushHeroMeshUpdates() itself (callers batch that once after however many volumes they process).
+	// Returns false (nothing applied) if FBuildingGrammarEngine::GenerateBuildingSpec fails.
+	bool GenerateAndApplyVolume(const FGrammarBuildingVolume& Volume);
+
 	static FString MakeBucketKey(const FString& Role, const FString& VariantKey);
 
 	// Shared teardown used by both RegenerateFromSource (which rebuilds right after) and

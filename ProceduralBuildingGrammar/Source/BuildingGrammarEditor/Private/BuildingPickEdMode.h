@@ -79,6 +79,12 @@ private:
 	void CloseAndGenerateDraft();
 	void CancelDraft();
 
+	// Snaps To's direction relative to From to 15-degree increments (world Atan2 angle in the
+	// horizontal plane), preserving the horizontal distance and Z -- ported from
+	// FFlexNetworkEdMode::ApplyAngleSnap. Returns To unchanged if
+	// UBuildingGrammarEdModeSettings::bAngleSnapEnabled is off or From==To (degenerate segment).
+	FVector ApplyAngleSnap(const FVector& From, const FVector& To) const;
+
 	// Resolves (creating on first use) this level's single dedicated pool actor for hand-placed
 	// buildings, tagged BuildingGrammarHandPlacedPoolTag so it's never mistaken for an OSM-import pool
 	// (e.g. by "Delete All Generated Building Pools"/bReplaceExistingBuildingPools -- see this class's
@@ -102,6 +108,14 @@ private:
 
 	// ---------------------------------------------------------------- Shared helpers
 	EBuildingGrammarEditTool GetActiveTool() const;
+
+	// Runs Pool->RegenerateFromSource() (the full teardown+rebuild-everything path -- see that
+	// method's own comment on why it costs O(Pool->SourceVolumes.Num()) every time) behind a
+	// cancellable FScopedSlowTask that reports which building is currently being regenerated, so a
+	// pool with many buildings shows real progress instead of an apparently frozen editor. Used by
+	// Move (EndTracking) and Delete, which can't avoid the full rebuild the way Place's AppendVolume
+	// does, since HISM buckets have no per-building partial removal/replace.
+	void RegenerateWithProgress(ABuildingInstancePoolActor* Pool, const FText& SlowTaskLabel);
 
 	// Casts a real ray into the world (landscape/static-mesh collision, ortho-camera-aware) to find
 	// the point under the cursor; falls back to a flat plane (through the draft's start height while

@@ -13,6 +13,7 @@
 #include "CollisionQueryParams.h"
 #include "EngineDefines.h"
 #include "ScopedTransaction.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Toolkits/ToolkitManager.h"
 #include "EditorModeManager.h"
 
@@ -87,6 +88,33 @@ EBuildingGrammarEditTool FBuildingPickEdMode::GetActiveTool() const
 {
 	const UBuildingGrammarEdModeSettings* Settings = GetOrCreateModeSettings();
 	return Settings ? Settings->ActiveTool : EBuildingGrammarEditTool::Select;
+}
+
+void FBuildingPickEdMode::RegenerateWithProgress(ABuildingInstancePoolActor* Pool, const FText& SlowTaskLabel)
+{
+	if (!Pool)
+	{
+		return;
+	}
+
+	// Below this many buildings the dialog would barely flash before the (already fast) regenerate
+	// finishes -- FScopedSlowTask's own default un-shown grace period already avoids that, but
+	// skipping MakeDialog() entirely for a trivially small pool also avoids the one-frame stall
+	// creating the dialog window itself would otherwise add to what's already a near-instant edit.
+	constexpr int32 MinVolumesToShowDialog = 4;
+	FScopedSlowTask SlowTask(static_cast<float>(Pool->SourceVolumes.Num()), SlowTaskLabel);
+	if (Pool->SourceVolumes.Num() >= MinVolumesToShowDialog)
+	{
+		SlowTask.MakeDialog(/*bShowCancelButton=*/true);
+	}
+
+	Pool->RegenerateFromSource([&SlowTask](int32 VolumesCompleted, int32 TotalVolumes, const FString& SourceName)
+	{
+		SlowTask.EnterProgressFrame(1.0f, FText::Format(
+			NSLOCTEXT("BuildingGrammar", "RegeneratingBuilding", "Regenerating building {0}/{1} ({2})..."),
+			FText::AsNumber(VolumesCompleted), FText::AsNumber(TotalVolumes), FText::FromString(SourceName)));
+		return !SlowTask.ShouldCancel();
+	});
 }
 
 // ---------------------------------------------------------------- Select tool
@@ -234,13 +262,40 @@ void FBuildingPickEdMode::BeginOrContinuePlacementClick()
 		return;
 	}
 
-	if (DraftPoints.Num() >= 3 && FVector::DistSquared2D(HoverWorldPoint, DraftPoints[0]) <= FMath::Square(CloseLoopRadiusCm))
+	// Snapped relative to the previous corner (no-op on the first corner of a draft, and a no-op
+	// entirely unless the toggle is on) so the committed point always matches what Render() previewed.
+	const FVector SnappedHover = DraftPoints.Num() > 0 ? ApplyAngleSnap(DraftPoints.Last(), HoverWorldPoint) : HoverWorldPoint;
+
+	if (DraftPoints.Num() >= 3 && FVector::DistSquared2D(SnappedHover, DraftPoints[0]) <= FMath::Square(CloseLoopRadiusCm))
 	{
 		CloseAndGenerateDraft();
 		return;
 	}
 
-	DraftPoints.Add(HoverWorldPoint);
+	DraftPoints.Add(SnappedHover);
+}
+
+FVector FBuildingPickEdMode::ApplyAngleSnap(const FVector& From, const FVector& To) const
+{
+	const UBuildingGrammarEdModeSettings* Settings = GetOrCreateModeSettings();
+	if (!Settings || !Settings->bAngleSnapEnabled)
+	{
+		return To;
+	}
+
+	const FVector Delta = To - From;
+	const double HorizontalLength = Delta.Size2D();
+	if (HorizontalLength <= KINDA_SMALL_NUMBER)
+	{
+		return To;
+	}
+
+	constexpr double AngleIncrementDegrees = 15.0;
+	const double AngleIncrement = FMath::DegreesToRadians(AngleIncrementDegrees);
+	const double Angle = FMath::Atan2(Delta.Y, Delta.X);
+	const double SnappedAngle = static_cast<double>(FMath::RoundToInt32(Angle / AngleIncrement)) * AngleIncrement;
+
+	return From + FVector(FMath::Cos(SnappedAngle) * HorizontalLength, FMath::Sin(SnappedAngle) * HorizontalLength, Delta.Z);
 }
 
 void FBuildingPickEdMode::CloseAndGenerateDraft()
@@ -278,16 +333,33 @@ void FBuildingPickEdMode::CloseAndGenerateDraft()
 	Pool->SourceConfig = Settings->GetResolvedConfigForPlacement();
 	Pool->SourceVolumes.Add(Volume);
 
-	if (!Settings->ActiveStyleName.IsEmpty())
+	if (!Settings->ActiveStyleName.IsEmpty() || Settings->bOverrideLevels || Settings->bOverrideRoofType)
 	{
 		FBuildingCustomizationOverride Override;
 		Override.ForcedStyleName = Settings->ActiveStyleName;
+		Override.bOverrideLevels = Settings->bOverrideLevels;
+		Override.Levels = Settings->Levels;
+		Override.bOverrideRoofType = Settings->bOverrideRoofType;
+		Override.RoofType = Settings->RoofType;
 		Pool->SetBuildingOverride(Volume.SourceName, Override);
 	}
 
-	Pool->RegenerateFromSource();
-
-	Settings->LastResult = FString::Printf(TEXT("Placed building '%s' (%d corners)."), *Volume.SourceName, Volume.Footprint.OuterRing.Num());
+	// AppendVolume generates and appends just this one new building onto the pool's existing
+	// components -- O(1) relative to how many buildings are already in the pool, unlike
+	// RegenerateFromSource's full teardown+rebuild-everything (see that method's own comment). This
+	// is what keeps placing a string of buildings one at a time from getting slower with each one.
+	if (Pool->AppendVolume(Volume))
+	{
+		Settings->LastResult = FString::Printf(TEXT("Placed building '%s' (%d corners)."), *Volume.SourceName, Volume.Footprint.OuterRing.Num());
+	}
+	else
+	{
+		// Roll back so a failed placement (e.g. a self-intersecting/degenerate footprint) doesn't
+		// leave an ungenerated ghost volume sitting in SourceVolumes.
+		Pool->SourceVolumes.Pop();
+		Pool->BuildingOverrides.Remove(Volume.SourceName);
+		Settings->LastResult = TEXT("Failed to place building: the footprint could not be generated (likely self-intersecting or degenerate).");
+	}
 
 	DraftPoints.Reset();
 }
@@ -358,7 +430,7 @@ bool FBuildingPickEdMode::EndTracking(FEditorViewportClient* InViewportClient, F
 					{
 						Pool->SourceConfig = Settings->GetResolvedConfigForPlacement();
 					}
-					Pool->RegenerateFromSource();
+					RegenerateWithProgress(Pool, NSLOCTEXT("BuildingGrammar", "RegeneratingAfterMove", "Regenerating buildings after move..."));
 					break;
 				}
 			}
@@ -430,7 +502,7 @@ void FBuildingPickEdMode::DeleteSelection()
 		}
 		else
 		{
-			Pool->RegenerateFromSource();
+			RegenerateWithProgress(Pool, NSLOCTEXT("BuildingGrammar", "RegeneratingAfterNodeDelete", "Regenerating buildings after deleting node..."));
 		}
 		return;
 	}
@@ -454,7 +526,7 @@ void FBuildingPickEdMode::DeleteSelection()
 		}
 		else
 		{
-			Pool->RegenerateFromSource();
+			RegenerateWithProgress(Pool, NSLOCTEXT("BuildingGrammar", "RegeneratingAfterBuildingDelete", "Regenerating buildings after delete..."));
 		}
 	}
 }
@@ -620,8 +692,11 @@ void FBuildingPickEdMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		}
 		if (bHoverValid)
 		{
-			const bool bWouldClose = DraftPoints.Num() >= 3 && FVector::DistSquared2D(HoverWorldPoint, DraftPoints[0]) <= FMath::Square(CloseLoopRadiusCm);
-			PDI->DrawLine(DraftPoints.Last(), bWouldClose ? DraftPoints[0] : HoverWorldPoint, bWouldClose ? FColor::Yellow : FColor(0, 255, 0, 128), SDPG_Foreground, 2.f);
+			// Snapped the same way BeginOrContinuePlacementClick snaps the actual commit, so the
+			// preview line never shows a different edge than the one a click would actually place.
+			const FVector SnappedHover = ApplyAngleSnap(DraftPoints.Last(), HoverWorldPoint);
+			const bool bWouldClose = DraftPoints.Num() >= 3 && FVector::DistSquared2D(SnappedHover, DraftPoints[0]) <= FMath::Square(CloseLoopRadiusCm);
+			PDI->DrawLine(DraftPoints.Last(), bWouldClose ? DraftPoints[0] : SnappedHover, bWouldClose ? FColor::Yellow : FColor(0, 255, 0, 128), SDPG_Foreground, 2.f);
 		}
 	}
 }

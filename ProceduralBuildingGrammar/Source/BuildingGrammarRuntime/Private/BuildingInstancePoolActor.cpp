@@ -280,7 +280,66 @@ void ABuildingInstancePoolActor::PostRegisterAllComponents()
 	RegenerateFromSource();
 }
 
+bool ABuildingInstancePoolActor::GenerateAndApplyVolume(const FGrammarBuildingVolume& Volume)
+{
+	// Apply this building's override (if any): TagOverrides win over the building's own VolumeTags
+	// on conflict, and a non-empty ForcedStyleName narrows the config's Styles down to just that
+	// one entry -- both feed GenerateBuildingSpec's ordinary (Tags, Config) inputs unchanged, so
+	// its existing tag-based style-selection logic does the rest without any special-casing here.
+	const FBuildingCustomizationOverride* Override = BuildingOverrides.Find(Volume.SourceName);
+
+	TMap<FString, FString> EffectiveTags = Volume.VolumeTags;
+	FBuildingGrammarConfig NarrowedConfig;
+	const FBuildingGrammarConfig* EffectiveConfig = &SourceConfig;
+
+	if (Override)
+	{
+		for (const TPair<FString, FString>& OverridePair : Override->TagOverrides)
+		{
+			EffectiveTags.Add(OverridePair.Key, OverridePair.Value);
+		}
+
+		if (Override->bOverrideLevels)
+		{
+			EffectiveTags.Add(TEXT("building:levels"), FString::FromInt(FMath::Max(Override->Levels, 1)));
+		}
+		if (Override->bOverrideRoofType)
+		{
+			EffectiveTags.Add(TEXT("grammar:roof:type"), RoofTypeToTagValue(Override->RoofType));
+		}
+
+		if (!Override->ForcedStyleName.IsEmpty())
+		{
+			NarrowedConfig = SourceConfig;
+			NarrowedConfig.Styles.RemoveAll([Override](const FFacadeStyleConfig& Style)
+			{
+				return Style.Name != Override->ForcedStyleName;
+			});
+			if (NarrowedConfig.Styles.Num() > 0)
+			{
+				EffectiveConfig = &NarrowedConfig;
+			}
+		}
+	}
+
+	FGrammarBuildingSpec Spec;
+	FString GenerationError;
+	if (!FBuildingGrammarEngine::GenerateBuildingSpec(Volume.Footprint.OuterRing, EffectiveTags, *EffectiveConfig, Volume.SourceName, Spec, GenerationError))
+	{
+		return false;
+	}
+	FBuildingGrammarEngine::ApplyMinHeightOffset(Spec, Volume.MinHeight);
+
+	ApplyBuildingSpec(Spec, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
+	return true;
+}
+
 void ABuildingInstancePoolActor::RegenerateFromSource()
+{
+	RegenerateFromSource([](int32, int32, const FString&) { return true; });
+}
+
+void ABuildingInstancePoolActor::RegenerateFromSource(TFunctionRef<bool(int32, int32, const FString&)> OnVolumeCompleted)
 {
 	if (SourceVolumes.Num() == 0)
 	{
@@ -291,60 +350,30 @@ void ABuildingInstancePoolActor::RegenerateFromSource()
 	// reasoning, just without destroying the actor itself.
 	DestroyGeneratedComponents();
 
+	const int32 TotalVolumes = SourceVolumes.Num();
+	int32 VolumesCompleted = 0;
 	for (const FGrammarBuildingVolume& Volume : SourceVolumes)
 	{
-		// Apply this building's override (if any): TagOverrides win over the building's own VolumeTags
-		// on conflict, and a non-empty ForcedStyleName narrows the config's Styles down to just that
-		// one entry -- both feed GenerateBuildingSpec's ordinary (Tags, Config) inputs unchanged, so
-		// its existing tag-based style-selection logic does the rest without any special-casing here.
-		const FBuildingCustomizationOverride* Override = BuildingOverrides.Find(Volume.SourceName);
+		GenerateAndApplyVolume(Volume);
 
-		TMap<FString, FString> EffectiveTags = Volume.VolumeTags;
-		FBuildingGrammarConfig NarrowedConfig;
-		const FBuildingGrammarConfig* EffectiveConfig = &SourceConfig;
-
-		if (Override)
+		++VolumesCompleted;
+		if (!OnVolumeCompleted(VolumesCompleted, TotalVolumes, Volume.SourceName))
 		{
-			for (const TPair<FString, FString>& OverridePair : Override->TagOverrides)
-			{
-				EffectiveTags.Add(OverridePair.Key, OverridePair.Value);
-			}
-
-			if (Override->bOverrideLevels)
-			{
-				EffectiveTags.Add(TEXT("building:levels"), FString::FromInt(FMath::Max(Override->Levels, 1)));
-			}
-			if (Override->bOverrideRoofType)
-			{
-				EffectiveTags.Add(TEXT("grammar:roof:type"), RoofTypeToTagValue(Override->RoofType));
-			}
-
-			if (!Override->ForcedStyleName.IsEmpty())
-			{
-				NarrowedConfig = SourceConfig;
-				NarrowedConfig.Styles.RemoveAll([Override](const FFacadeStyleConfig& Style)
-				{
-					return Style.Name != Override->ForcedStyleName;
-				});
-				if (NarrowedConfig.Styles.Num() > 0)
-				{
-					EffectiveConfig = &NarrowedConfig;
-				}
-			}
+			break;
 		}
-
-		FGrammarBuildingSpec Spec;
-		FString GenerationError;
-		if (!FBuildingGrammarEngine::GenerateBuildingSpec(Volume.Footprint.OuterRing, EffectiveTags, *EffectiveConfig, Volume.SourceName, Spec, GenerationError))
-		{
-			continue;
-		}
-		FBuildingGrammarEngine::ApplyMinHeightOffset(Spec, Volume.MinHeight);
-
-		ApplyBuildingSpec(Spec, &FGrammarKitResolver::ResolveKitMesh, &FGrammarKitResolver::ResolveMaterial);
 	}
 
 	FlushHeroMeshUpdates();
+}
+
+bool ABuildingInstancePoolActor::AppendVolume(const FGrammarBuildingVolume& Volume)
+{
+	if (!GenerateAndApplyVolume(Volume))
+	{
+		return false;
+	}
+	FlushHeroMeshUpdates();
+	return true;
 }
 
 void ABuildingInstancePoolActor::PostLoad()

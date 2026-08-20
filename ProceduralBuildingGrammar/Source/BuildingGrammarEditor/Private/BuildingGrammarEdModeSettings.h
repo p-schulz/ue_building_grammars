@@ -5,6 +5,7 @@
 #include "UObject/Object.h"
 #include "Osm/FlexOsmImportSettings.h"
 #include "Config/BuildingGrammarConfig.h"
+#include "Config/RoofStyleConfig.h"
 #include "BuildingGrammarEdModeSettings.generated.h"
 
 class UOsmDataAsset;
@@ -43,6 +44,30 @@ public:
 
 	UFUNCTION()
 	TArray<FString> GetStyleNameOptions() const;
+
+	/** Overrides the number of floors newly Place-tool-drawn buildings are generated with -- feeds
+	 * FBuildingCustomizationOverride::bOverrideLevels/Levels on the new building, the same field the
+	 * Building Customization panel's Levels override writes to (see BuildingInstancePoolActor.h). */
+	UPROPERTY(EditAnywhere, Category = "Tool|Place")
+	bool bOverrideLevels = false;
+
+	UPROPERTY(EditAnywhere, Category = "Tool|Place", meta = (EditCondition = "bOverrideLevels", ClampMin = "1"))
+	int32 Levels = 4;
+
+	/** Overrides the roof shape newly Place-tool-drawn buildings are generated with -- feeds
+	 * FBuildingCustomizationOverride::bOverrideRoofType/RoofType on the new building. */
+	UPROPERTY(EditAnywhere, Category = "Tool|Place")
+	bool bOverrideRoofType = false;
+
+	UPROPERTY(EditAnywhere, Category = "Tool|Place", meta = (EditCondition = "bOverrideRoofType"))
+	EGrammarRoofType RoofType = EGrammarRoofType::Flat;
+
+	/** Snaps each new Place-tool edge's direction (from the previously placed corner to the one about
+	 * to be placed) to 15-degree increments measured from world +X -- same behavior/increment as
+	 * FlexNetwork's own road-drawing angle snap (FFlexNetworkEdMode::ApplyAngleSnap). Has no effect on
+	 * a draft's very first corner, since there's no previous corner yet to measure an edge from. */
+	UPROPERTY(EditAnywhere, Category = "Tool|Place", meta = (DisplayName = "Snap Edges to 15°"))
+	bool bAngleSnapEnabled = false;
 
 	/** Generic OSM asset imported by FlexNetwork. Building ways and multipolygon relations are read from it. */
 	UPROPERTY(EditAnywhere, Category = "OSM Asset")
