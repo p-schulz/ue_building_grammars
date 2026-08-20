@@ -28,6 +28,26 @@
 #include "Misc/PackageName.h"
 #endif
 
+namespace
+{
+	// Matches GrammarEngineInternal::RoofFromTags's own ShapeAliases keys (BuildingGrammarCore,
+	// GrammarEngineInternal.cpp) -- kept as a switch (not an index into that table) so this doesn't
+	// silently break if EGrammarRoofType's declaration order ever changes.
+	FString RoofTypeToTagValue(EGrammarRoofType Type)
+	{
+		switch (Type)
+		{
+		case EGrammarRoofType::Flat: return TEXT("flat");
+		case EGrammarRoofType::Gabled: return TEXT("gabled");
+		case EGrammarRoofType::Hipped: return TEXT("hipped");
+		case EGrammarRoofType::Pyramid: return TEXT("pyramidal");
+		case EGrammarRoofType::Gambrel: return TEXT("gambrel");
+		case EGrammarRoofType::Mansard: return TEXT("mansard");
+		default: return TEXT("flat");
+		}
+	}
+}
+
 ABuildingInstancePoolActor::ABuildingInstancePoolActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -288,6 +308,15 @@ void ABuildingInstancePoolActor::RegenerateFromSource()
 			for (const TPair<FString, FString>& OverridePair : Override->TagOverrides)
 			{
 				EffectiveTags.Add(OverridePair.Key, OverridePair.Value);
+			}
+
+			if (Override->bOverrideLevels)
+			{
+				EffectiveTags.Add(TEXT("building:levels"), FString::FromInt(FMath::Max(Override->Levels, 1)));
+			}
+			if (Override->bOverrideRoofType)
+			{
+				EffectiveTags.Add(TEXT("grammar:roof:type"), RoofTypeToTagValue(Override->RoofType));
 			}
 
 			if (!Override->ForcedStyleName.IsEmpty())

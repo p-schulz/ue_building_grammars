@@ -55,9 +55,43 @@ void UBuildingGrammarEdModeSettings::LoadGrammarConfig()
 		return;
 	}
 
+	CachedPlacementConfig = Config;
+	bCachedPlacementConfigValid = true;
+	// The previously-active style may no longer exist in a newly loaded config.
+	if (!ActiveStyleName.IsEmpty() && !Config.Styles.ContainsByPredicate(
+		[this](const FFacadeStyleConfig& Style) { return Style.Name == ActiveStyleName; }))
+	{
+		ActiveStyleName.Reset();
+	}
+
 	LastResult = GrammarConfigFile.FilePath.IsEmpty()
 		? FString::Printf(TEXT("Built-in Urban Block config is valid (%d styles)."), Config.Styles.Num())
 		: FString::Printf(TEXT("Loaded %d styles from %s."), Config.Styles.Num(), *FPaths::GetCleanFilename(GrammarConfigFile.FilePath));
+}
+
+const FBuildingGrammarConfig& UBuildingGrammarEdModeSettings::GetResolvedConfigForPlacement() const
+{
+	if (!bCachedPlacementConfigValid)
+	{
+		FString Error;
+		if (!ResolveConfig(CachedPlacementConfig, Error))
+		{
+			CachedPlacementConfig = GrammarBuildingPresets::UrbanBlockConfig();
+		}
+		bCachedPlacementConfigValid = true;
+	}
+	return CachedPlacementConfig;
+}
+
+TArray<FString> UBuildingGrammarEdModeSettings::GetStyleNameOptions() const
+{
+	TArray<FString> Options;
+	Options.Add(FString()); // Empty = "Auto" (tag-based selection, today's default behavior).
+	for (const FFacadeStyleConfig& Style : GetResolvedConfigForPlacement().Styles)
+	{
+		Options.Add(Style.Name);
+	}
+	return Options;
 }
 
 void UBuildingGrammarEdModeSettings::LoadFlexNetworkOsmContext()

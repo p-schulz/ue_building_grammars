@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Osm/BuildingPartResolver.h"
 #include "Config/BuildingGrammarConfig.h"
+#include "Config/RoofStyleConfig.h"
 #include "BuildingInstancePoolActor.generated.h"
 
 class UHierarchicalInstancedStaticMeshComponent;
@@ -62,6 +63,25 @@ struct FBuildingCustomizationOverride
 	// Empty means "no override, use tag-based selection as usual".
 	UPROPERTY(EditAnywhere)
 	FString ForcedStyleName;
+
+	// Structured convenience overrides below: each just writes the matching tag key EffectiveTags
+	// already gets merged into before FBuildingGrammarEngine::GenerateBuildingSpec runs (see
+	// RegenerateFromSource) -- FGrammarLevels::InferLevels already reads "building:levels", and
+	// GrammarEngineInternal::RoofFromTags already reads "grammar:roof:type" (a plugin-specific alias
+	// alongside OSM's own "roof:shape"/"roof:type") -- so no engine/generation changes are needed,
+	// this just exposes a friendly typed UI control instead of requiring TagOverrides with the exact
+	// tag key spelled out by hand.
+	UPROPERTY(EditAnywhere, Category = "Building")
+	bool bOverrideLevels = false;
+
+	UPROPERTY(EditAnywhere, Category = "Building", meta = (EditCondition = "bOverrideLevels", ClampMin = "1"))
+	int32 Levels = 4;
+
+	UPROPERTY(EditAnywhere, Category = "Roof")
+	bool bOverrideRoofType = false;
+
+	UPROPERTY(EditAnywhere, Category = "Roof", meta = (EditCondition = "bOverrideRoofType"))
+	EGrammarRoofType RoofType = EGrammarRoofType::Flat;
 };
 
 // Plain data extracted from a pool actor's live components (see

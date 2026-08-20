@@ -28,6 +28,8 @@ public class BuildingGrammarEditor : ModuleRules
 			// The editor mode consumes FlexNetwork's generic UOsmDataAsset and its exact projection
 			// helpers. Core/runtime building modules remain independent of FlexNetwork.
 			"FlexNetworkRuntime",
+			// EKeys::* (Place/Move/Delete tool input handling in BuildingPickEdMode).
+			"InputCore",
 			"Slate",
 			"SlateCore",
 			"EditorScriptingUtilities",
