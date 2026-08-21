@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "BuildingInstancePoolActor.h"
+#include "Parcel/GrammarParcelTypes.h"
 #include "BuildingPickPanelData.generated.h"
 
 // Backing struct for the floating "Pick Building" customization details panel
@@ -22,4 +23,24 @@ struct FBuildingPickPanelData
 
 	UPROPERTY(EditAnywhere, Category = "Building")
 	FBuildingCustomizationOverride Override;
+};
+
+// Backing struct for the floating "Pick Block" regenerate-parameters panel
+// (FBuildingGrammarEditorModule::HandleBlockPicked) -- same FStructOnScope/IStructureDetailsView
+// live-edit pattern as FBuildingPickPanelData above. BlockId is read-only context (identifies which
+// block this panel is for); Method/ParcelConfig are what "Regenerate This Block" actually uses,
+// pre-filled from the mode settings' current global values when the block was picked.
+USTRUCT()
+struct FGrammarBlockPickPanelData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = "Block")
+	int32 BlockId = INDEX_NONE;
+
+	UPROPERTY(EditAnywhere, Category = "Block")
+	EGrammarParcelSubdivisionMethod Method = EGrammarParcelSubdivisionMethod::Hybrid;
+
+	UPROPERTY(EditAnywhere, Category = "Block", meta = (ShowOnlyInnerProperties))
+	FGrammarParcelConfig ParcelConfig;
 };

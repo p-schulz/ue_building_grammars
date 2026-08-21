@@ -6,6 +6,7 @@
 #include "Osm/FlexOsmImportSettings.h"
 #include "Config/BuildingGrammarConfig.h"
 #include "Config/RoofStyleConfig.h"
+#include "Parcel/GrammarParcelTypes.h"
 #include "BuildingGrammarEdModeSettings.generated.h"
 
 class UOsmDataAsset;
@@ -21,7 +22,11 @@ enum class EBuildingGrammarEditTool : uint8
 	/** Click-click to place footprint corners connected by straight edges; click near the first corner (or press Enter) to close the loop and generate a building. */
 	Place,
 	/** Drag an existing hand-placed building's footprint corners to reshape it. */
-	Move
+	Move,
+	/** Click inside a road-network block (from the most recent "Generate Buildings From Road
+	 * Network" run -- see UBuildingGrammarEdModeSettings::LastParcelDebugData) to open a panel for
+	 * tweaking that one block's parcel-subdivision method/config and regenerating just its buildings. */
+	Block
 };
 
 /** Transient settings and commands displayed by the Building Grammar editor mode toolkit. */
@@ -114,6 +119,36 @@ public:
 
 	UFUNCTION(CallInEditor, Category = "Generation", meta = (DisplayName = "Delete Generated Building Pools"))
 	void DeleteGeneratedBuildingPools();
+
+	/** How each extracted road-network block is carved into building lots -- see
+	 * EGrammarParcelSubdivisionMethod's own comments for what each option actually does. */
+	UPROPERTY(EditAnywhere, Category = "Parcels")
+	EGrammarParcelSubdivisionMethod ParcelSubdivisionMethod = EGrammarParcelSubdivisionMethod::Hybrid;
+
+	UPROPERTY(EditAnywhere, Category = "Parcels", meta = (ShowOnlyInnerProperties))
+	FGrammarParcelConfig ParcelConfig;
+
+	/** Draws each block's boundary, the final parcel outlines (color-coded: green = buildable,
+	 * orange = buildable with a constraint warning, red = rejected/no street access, purple = patio),
+	 * and the subdivision algorithm's own debug rays/boxes (OBB split cuts, skeleton frontage rays,
+	 * inner offset contours) in the viewport -- see FBuildingPickEdMode::Render. Populated by the most
+	 * recent "Generate Buildings From Road Network" run; stays empty until that's been run at least
+	 * once. */
+	UPROPERTY(EditAnywhere, Category = "Parcels|Debug")
+	bool bShowParcelDebugVisualization = false;
+
+	/** Captured by the most recent "Generate Buildings From Road Network" run -- see
+	 * bShowParcelDebugVisualization. Not a UPROPERTY: purely consumed by Render(), not meant to be
+	 * edited or shown as a wall of numbers in the details panel. */
+	TArray<FGrammarBlockDebugData> LastParcelDebugData;
+
+	/** Extracts every closed block from the current level's FlexNetwork road graph
+	 * (FFlexRoadBlockExtraction), subdivides each into parcels (ParcelSubdivisionMethod/ParcelConfig),
+	 * and generates a building on every street-facing parcel using whichever config
+	 * GrammarConfigFile/LoadGrammarConfig most recently resolved -- the same style-selection path
+	 * "Generate Buildings From OSM Asset" uses. Respects bReplaceExistingBuildingPools. */
+	UFUNCTION(CallInEditor, Category = "Parcels", meta = (DisplayName = "Generate Buildings From Road Network"))
+	void GenerateBuildingsFromRoadNetwork();
 
 	/** Refreshed by the mode so CallInEditor commands always operate on the current editor world. */
 	TWeakObjectPtr<UWorld> TargetWorld;

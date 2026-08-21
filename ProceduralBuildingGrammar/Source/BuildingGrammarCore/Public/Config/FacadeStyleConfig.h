@@ -26,6 +26,29 @@ enum class EGrammarWallRowColorMode : uint8
 	GroundAccent UMETA(DisplayName = "Ground Accent")
 };
 
+// Which street-level/vertical facade detail pattern (if any) GrammarFacadeDepth::FacadeDepthPlacements
+// generates for this style, in addition to windows/doors. Formerly an implicit side effect of
+// whether the style's own name/material tokens happened to contain a trigger keyword (still exactly
+// how Auto resolves -- see GrammarFacadeDepth.cpp's FacadePatternPlacements -- kept as the default so
+// every config written before this field existed keeps generating exactly what it always did).
+UENUM(BlueprintType)
+enum class EGrammarFacadePattern : uint8
+{
+	// Infers the pattern from Style.Name/WallMaterial/Window.Material/Ledge.Material tokens, the
+	// same keyword sets FacadePatternPlacements has always used -- not mutually exclusive under
+	// Auto (a name matching e.g. both "office" and "modern" keyword sets gets both patterns, exactly
+	// as before this field existed).
+	Auto UMETA(DisplayName = "Auto (infer from name)"),
+	None UMETA(DisplayName = "None"),
+	// Precast/curtain-wall joint lines: vertical seams every ~3.2m plus a horizontal seam at each
+	// floor line.
+	PanelSeams UMETA(DisplayName = "Panel Seams"),
+	// A shadow-gap band at each floor line, typical of insulated render (Passivhaus/contemporary).
+	InsulationBands UMETA(DisplayName = "Insulation Bands"),
+	// Cornice-like bands at each floor line plus vertical pilasters, typical of historic facades.
+	OrnamentBands UMETA(DisplayName = "Ornament Bands")
+};
+
 // Port of config.py's FacadeStyleConfig. default_levels/default_floor_height/roof are Optional in
 // Python (None = "fall back to the root BuildingGrammarConfig's value"); represented here as an
 // explicit bHas*/value pair rather than a sentinel number, since UPROPERTY doesn't reflect
@@ -107,4 +130,7 @@ struct BUILDINGGRAMMARCORE_API FFacadeStyleConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Facade")
 	FAntennaStyleConfig Antenna;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Facade")
+	EGrammarFacadePattern FacadePattern = EGrammarFacadePattern::Auto;
 };

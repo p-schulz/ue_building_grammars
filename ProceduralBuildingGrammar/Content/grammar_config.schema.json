@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://procedural-building-grammar/schemas/grammar_config.schema.json",
+  "title": "BuildingGrammarConfig",
+  "description": "Configuration for rule-based procedural building generation (see config.py).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "root_collection": {
+      "type": "string",
+      "default": "Procedural Buildings",
+      "description": "Blender collection that generated buildings are placed into."
+    },
+    "source_collection": {
+      "type": ["string", "null"],
+      "default": "Buildings",
+      "description": "Blender collection to read source building footprints from."
+    },
+    "include_selected_only": { "type": "boolean", "default": false },
+    "replace_existing": { "type": "boolean", "default": true },
+    "enable_building_parts": { "type": "boolean", "default": true },
+    "skip_parent_footprints_with_parts": { "type": "boolean", "default": true },
+    "inherit_parent_tags_for_parts": { "type": "boolean", "default": true },
+    "building_part_match_tolerance": { "type": "number", "minimum": 0, "default": 0.25 },
+    "use_mesh_instancing": { "type": "boolean", "default": true },
+    "batch_generated_meshes": { "type": "boolean", "default": true },
+    "batch_roles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Generated-mesh roles (e.g. window, balcony_rail, roof_tile) eligible for batching.",
+      "default": [
+        "window", "window_frame", "window_mullion", "window_sill", "ledge",
+        "balcony", "balcony_rail", "balcony_bar", "door_frame", "door_handle",
+        "door_canopy", "roof_edge", "roof_lamp", "roof_tile", "roof_window",
+        "dormer", "chimney", "antenna", "antenna_panel", "signboard", "awning",
+        "garage_door", "loading_dock", "stair_core", "shutter", "facade_ornament",
+        "panel_seam", "insulation_band", "gutter", "pv_panel", "hvac_unit", "roof_plant"
+      ]
+    },
+    "default_levels": { "type": "integer", "minimum": 1, "default": 4 },
+    "default_floor_height": { "type": "number", "exclusiveMinimum": 0, "default": 3.1 },
+    "irregular_floor_heights": {
+      "type": "object",
+      "description": "Per-floor height overrides. Keys are floor indices (0 = ground floor) encoded as strings.",
+      "propertyNames": { "pattern": "^[0-9]+$" },
+      "additionalProperties": { "type": "number", "exclusiveMinimum": 0 },
+      "default": {}
+    },
+    "excluded_building_values": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "OSM building=* values skipped unless a style explicitly matches their tags.",
+      "default": ["shelter"]
+    },
+    "styles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/facadeStyle" },
+      "minItems": 1,
+      "default": [{}]
+    },
+    "roof": {
+      "$ref": "#/$defs/roofStyle",
+      "description": "Fallback roof used when a matched style does not define its own roof."
+    },
+    "roof_street_alignment_search_radius": {
+      "type": "number",
+      "minimum": 0,
+      "default": 80.0,
+      "description": "Search radius (meters) used to find the nearest street for roof ridge alignment."
+    }
+  },
+
+  "$defs": {
+    "color": {
+      "type": "array",
+      "description": "RGBA color, channels in [0, 1]. A 3-item array is treated as RGB with alpha=1.0.",
+      "items": { "type": "number", "minimum": 0, "maximum": 1 },
+      "minItems": 3,
+      "maxItems": 4
+    },
+
+    "facadeStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "default": "default" },
+        "building_values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "OSM building/building:part/building:use values that select this style directly.",
+          "default": []
+        },
+        "tag_filters": {
+          "type": "object",
+          "description": "OSM tag key -> list of matching values (\"*\" matches any non-empty value) that select this style.",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "default": {}
+        },
+        "default_levels": { "type": ["integer", "null"], "minimum": 1, "default": null },
+        "default_floor_height": { "type": ["number", "null"], "exclusiveMinimum": 0, "default": null },
+        "roof": {
+          "anyOf": [{ "$ref": "#/$defs/roofStyle" }, { "type": "null" }],
+          "default": null,
+          "description": "Style-specific roof override; falls back to the top-level roof config when null."
+        },
+        "wall_material": { "type": "string", "default": "Grammar Facade" },
+        "wall_color": { "$ref": "#/$defs/color", "default": [0.72, 0.68, 0.6, 1.0] },
+        "wall_texture_path": { "type": ["string", "null"], "default": null },
+        "wall_texture_scale": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "wall_color_variants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/color" },
+          "default": []
+        },
+        "wall_color_variant_mode": {
+          "type": "string",
+          "description": "How wall_color_variants are picked per facade: none (disabled), building (stable per building), facade (stable per facade side), or anything else (cycles by side index).",
+          "enum": ["none", "building", "facade", "cycle"],
+          "default": "none"
+        },
+        "wall_row_colors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/color" },
+          "description": "Per-floor-row wall colors, applied bottom to top.",
+          "default": []
+        },
+        "wall_row_color_mode": {
+          "type": "string",
+          "description": "How wall_row_colors are applied: cycle (repeats by floor index) or ground_accent (first color reserved for the ground floor).",
+          "enum": ["cycle", "ground_accent"],
+          "default": "cycle"
+        },
+        "window": { "$ref": "#/$defs/windowStyle" },
+        "ledge": { "$ref": "#/$defs/ledgeStyle" },
+        "balcony": { "$ref": "#/$defs/balconyStyle" },
+        "door": { "$ref": "#/$defs/doorStyle" },
+        "antenna": { "$ref": "#/$defs/antennaStyle" },
+        "facade_pattern": {
+          "type": "string",
+          "enum": ["auto", "none", "panel_seams", "insulation_bands", "ornament_bands"],
+          "description": "Street-level/vertical facade detail pattern. auto infers it from the style's own name/material tokens (panel_seams: plattenbau/prefab/industrial/warehouse/parking/office/curtain; insulation_bands: passivhaus/contemporary/modern/bauhaus; ornament_bands: gruenderzeit/jugendstil/fachwerk/historic/altbau/kontorhaus/church/cathedral/sacral) -- the same keyword sets used before this field existed, so an unset/auto value reproduces every prior config's behavior unchanged. Any other value forces exactly that pattern (or none) regardless of name.",
+          "default": "auto"
+        }
+      }
+    },
+
+    "windowStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": "number", "exclusiveMinimum": 0, "default": 1.25 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "default": 1.55 },
+        "sill_height": { "type": "number", "minimum": 0, "default": 0.85 },
+        "spacing": { "type": "number", "exclusiveMinimum": 0, "description": "Center-to-center period between windows along a facade.", "default": 2.7 },
+        "min_margin": { "type": "number", "minimum": 0, "description": "Minimum clearance kept from facade corners.", "default": 0.8 },
+        "depth": { "type": "number", "minimum": 0, "default": 0.04 },
+        "recess_depth": {
+          "type": "number",
+          "minimum": 0,
+          "description": "How far the glass+frame sit behind the flush wall plane (GrammarWallRecess.cpp carves a matching pocket -- back quad plus jamb/sill/head reveal quads -- into the wall mesh around the opening). The wall's own flush plane is effectively the spandrel/panel surface, so a window with recess_depth noticeably deeper than depth+frame_depth reads as glazing set back behind projecting panels. Keep depth + frame_depth > recess_depth, or the generated window_frame/window_mullion boxes (whose own thickness is depth + frame_depth - recess_depth) degenerate to zero/negative size.",
+          "default": 0.10
+        },
+        "material": { "type": "string", "default": "Grammar Glass" },
+        "color": { "$ref": "#/$defs/color", "default": [0.12, 0.22, 0.32, 1.0] },
+        "texture_path": { "type": ["string", "null"], "default": null },
+        "texture_scale": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "frame_width": { "type": "number", "minimum": 0, "default": 0.08 },
+        "frame_depth": { "type": "number", "minimum": 0, "default": 0.03 },
+        "frame_material": { "type": "string", "default": "Grammar Window Frames" },
+        "frame_color": { "$ref": "#/$defs/color", "default": [0.86, 0.84, 0.78, 1.0] },
+        "vertical_mullions": { "type": "integer", "minimum": 0, "default": 1 },
+        "horizontal_mullions": { "type": "integer", "minimum": 0, "default": 0 },
+        "sill_depth": { "type": "number", "minimum": 0, "default": 0.16 },
+        "sill_thickness": { "type": "number", "minimum": 0, "default": 0.06 },
+        "sill_material": { "type": "string", "default": "Grammar Window Sills" },
+        "sill_color": { "$ref": "#/$defs/color", "default": [0.78, 0.74, 0.68, 1.0] }
+      }
+    },
+
+    "ledgeStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "depth": { "type": "number", "minimum": 0, "default": 0.16 },
+        "height": { "type": "number", "minimum": 0, "default": 0.08 },
+        "every_n_floors": { "type": "integer", "minimum": 1, "default": 1 },
+        "material": { "type": "string", "default": "Grammar Ledges" },
+        "color": { "$ref": "#/$defs/color", "default": [0.78, 0.74, 0.68, 1.0] },
+        "texture_path": { "type": ["string", "null"], "default": null },
+        "texture_scale": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 }
+      }
+    },
+
+    "balconyStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "width": { "type": "number", "exclusiveMinimum": 0, "default": 1.9 },
+        "depth": { "type": "number", "exclusiveMinimum": 0, "default": 0.75 },
+        "slab_height": { "type": "number", "minimum": 0, "default": 0.12 },
+        "railing_height": { "type": "number", "minimum": 0, "default": 0.9 },
+        "every_n_floors": { "type": "integer", "minimum": 1, "default": 2 },
+        "material": { "type": "string", "default": "Grammar Balconies" },
+        "color": { "$ref": "#/$defs/color", "default": [0.58, 0.58, 0.55, 1.0] },
+        "texture_path": { "type": ["string", "null"], "default": null },
+        "texture_scale": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "railing_material": { "type": "string", "default": "Grammar Balcony Railings" },
+        "railing_color": { "$ref": "#/$defs/color", "default": [0.16, 0.16, 0.15, 1.0] },
+        "railing_bar_count": { "type": "integer", "minimum": 0, "default": 5 },
+        "railing_bar_width": { "type": "number", "minimum": 0, "default": 0.04 },
+        "railing_bar_depth": { "type": "number", "minimum": 0, "default": 0.04 }
+      }
+    },
+
+    "doorStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "placement": {
+          "type": "string",
+          "description": "Only \"none\" and \"each_facade\" are special-cased by the generator: none disables the door; each_facade places one per facade. Any other value (conventionally \"first_facade\", also seen as \"street_facing\") places a single door on the street-facing side.",
+          "default": "first_facade"
+        },
+        "width": { "type": "number", "exclusiveMinimum": 0, "default": 1.25 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "default": 2.25 },
+        "depth": { "type": "number", "minimum": 0, "default": 0.08 },
+        "recess_depth": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Same recessed-opening mechanism as windowStyle.recess_depth (GrammarWallRecess.cpp) -- how far the door sits behind the flush wall plane.",
+          "default": 0.05
+        },
+        "material": { "type": "string", "default": "Grammar Door" },
+        "color": { "$ref": "#/$defs/color", "default": [0.16, 0.1, 0.06, 1.0] },
+        "texture_path": { "type": ["string", "null"], "default": null },
+        "texture_scale": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "frame_width": { "type": "number", "minimum": 0, "default": 0.12 },
+        "frame_depth": { "type": "number", "minimum": 0, "default": 0.04 },
+        "frame_material": { "type": "string", "default": "Grammar Door Frames" },
+        "frame_color": { "$ref": "#/$defs/color", "default": [0.72, 0.68, 0.6, 1.0] },
+        "handle_enabled": { "type": "boolean", "default": true },
+        "handle_radius": { "type": "number", "minimum": 0, "default": 0.05 },
+        "handle_material": { "type": "string", "default": "Grammar Door Handles" },
+        "handle_color": { "$ref": "#/$defs/color", "default": [0.82, 0.66, 0.32, 1.0] },
+        "canopy_enabled": { "type": "boolean", "default": false },
+        "canopy_width": { "type": "number", "exclusiveMinimum": 0, "default": 1.8 },
+        "canopy_depth": { "type": "number", "exclusiveMinimum": 0, "default": 0.75 },
+        "canopy_thickness": { "type": "number", "minimum": 0, "default": 0.08 },
+        "canopy_material": { "type": "string", "default": "Grammar Door Canopies" },
+        "canopy_color": { "$ref": "#/$defs/color", "default": [0.36, 0.36, 0.34, 1.0] }
+      }
+    },
+
+    "antennaStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "type": {
+          "type": "string",
+          "description": "Rooftop fixture archetype. Common values seen in presets: tv, radio, satellite, lightning_rod, office_cluster, cellular, broadcast, lamp_post. Unrecognized values fall back to a generic mast+panel shape.",
+          "default": "tv"
+        },
+        "count": { "type": "integer", "minimum": 0, "default": 1 },
+        "mast_height": { "type": "number", "minimum": 0, "default": 1.4 },
+        "mast_radius": { "type": "number", "exclusiveMinimum": 0, "default": 0.035 },
+        "base_width": { "type": "number", "exclusiveMinimum": 0, "default": 0.45 },
+        "base_depth": { "type": "number", "exclusiveMinimum": 0, "default": 0.45 },
+        "base_height": { "type": "number", "minimum": 0, "default": 0.18 },
+        "panel_width": { "type": "number", "exclusiveMinimum": 0, "default": 0.35 },
+        "panel_height": { "type": "number", "exclusiveMinimum": 0, "default": 0.7 },
+        "panel_depth": { "type": "number", "minimum": 0, "default": 0.06 },
+        "material": { "type": "string", "default": "Grammar Antenna Metal" },
+        "color": { "$ref": "#/$defs/color", "default": [0.34, 0.34, 0.33, 1.0] },
+        "accent_material": { "type": "string", "default": "Grammar Antenna Panels" },
+        "accent_color": { "$ref": "#/$defs/color", "default": [0.78, 0.78, 0.72, 1.0] }
+      }
+    },
+
+    "roofStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "pyramidal is accepted on read as an alias for pyramid (RoofTypeFromString, GrammarConfigJson.cpp) but the writer only ever emits pyramid -- both are listed here since this schema validates hand-authored/exported files, not just this engine's own output.",
+          "enum": ["flat", "gabled", "hipped", "pyramid", "pyramidal", "gambrel", "mansard"],
+          "default": "flat"
+        },
+        "height": { "type": "number", "minimum": 0, "default": 1.6 },
+        "overhang": { "type": "number", "minimum": 0, "default": 0.25 },
+        "ridge_alignment": {
+          "type": "string",
+          "description": "For gabled roofs without an explicit roof:orientation tag: closest_street/nearest_street/street/highway align the ridge to the nearest street; any other value falls back to the footprint's longest axis.",
+          "default": "closest_street"
+        },
+        "material": { "type": "string", "default": "Grammar Roof" },
+        "color": { "$ref": "#/$defs/color", "default": [0.34, 0.08, 0.06, 1.0] },
+        "texture_path": { "type": ["string", "null"], "default": null },
+        "texture_scale": { "type": "number", "exclusiveMinimum": 0, "default": 1.0 },
+        "edge_enabled": { "type": "boolean", "default": true },
+        "edge_width": { "type": "number", "minimum": 0, "default": 0.28 },
+        "edge_height": { "type": "number", "minimum": 0, "default": 0.35 },
+        "surface_inset": { "type": "number", "minimum": 0, "default": 0.08 },
+        "edge_material": { "type": "string", "default": "Grammar Roof Edge" },
+        "edge_color": { "$ref": "#/$defs/color", "default": [0.22, 0.22, 0.2, 1.0] },
+        "corner_cap_size": { "type": "number", "minimum": 0, "default": 0.42 },
+        "tile_rows": { "type": "integer", "minimum": 0, "description": "Ignored when type is flat.", "default": 6 },
+        "tile_depth": { "type": "number", "minimum": 0, "default": 0.035 },
+        "tile_spacing": { "type": "number", "exclusiveMinimum": 0, "default": 0.55 },
+        "tile_material": { "type": "string", "default": "Grammar Roof Tile Bands" },
+        "tile_color": { "$ref": "#/$defs/color", "default": [0.28, 0.07, 0.045, 1.0] },
+        "dormer_count": { "type": "integer", "minimum": 0, "description": "Only applied when type is gabled or hipped.", "default": 0 },
+        "dormer_width": { "type": "number", "exclusiveMinimum": 0, "default": 1.35 },
+        "dormer_depth": { "type": "number", "exclusiveMinimum": 0, "default": 0.9 },
+        "dormer_height": { "type": "number", "exclusiveMinimum": 0, "default": 0.9 },
+        "dormer_material": { "type": "string", "default": "Grammar Dormer Cladding" },
+        "dormer_color": { "$ref": "#/$defs/color", "default": [0.62, 0.58, 0.5, 1.0] },
+        "roof_window_count": { "type": "integer", "minimum": 0, "description": "Ignored when type is flat.", "default": 0 },
+        "roof_window_width": { "type": "number", "exclusiveMinimum": 0, "default": 0.75 },
+        "roof_window_height": { "type": "number", "exclusiveMinimum": 0, "default": 1.05 },
+        "roof_window_material": { "type": "string", "default": "Grammar Roof Window Glass" },
+        "roof_window_color": { "$ref": "#/$defs/color", "default": [0.08, 0.16, 0.2, 0.86] },
+        "chimney_count": { "type": "integer", "minimum": 0, "default": 0 },
+        "chimney_width": { "type": "number", "exclusiveMinimum": 0, "default": 0.45 },
+        "chimney_depth": { "type": "number", "exclusiveMinimum": 0, "default": 0.38 },
+        "chimney_height": { "type": "number", "exclusiveMinimum": 0, "default": 1.15 },
+        "chimney_material": { "type": "string", "default": "Grammar Brick Chimney" },
+        "chimney_color": { "$ref": "#/$defs/color", "default": [0.42, 0.16, 0.1, 1.0] }
+      }
+    }
+  }
+}

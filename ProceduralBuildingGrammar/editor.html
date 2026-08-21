@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building Grammar Config Editor</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f2ec;
+      --panel: #fffefa;
+      --panel-2: #ebe7dc;
+      --field: #fbfaf6;
+      --ink: #202322;
+      --muted: #67706b;
+      --line: #d7d2c6;
+      --accent: #20736d;
+      --accent-ink: #ffffff;
+      --warn: #a44635;
+      --preview: #e5e9e4;
+      --shadow: 0 8px 24px rgba(34, 31, 24, .08);
+    }
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #151816;
+      --panel: #20251f;
+      --panel-2: #2a3029;
+      --field: #171b18;
+      --ink: #ece9df;
+      --muted: #aab2aa;
+      --line: #3a413a;
+      --accent: #6bb9ad;
+      --accent-ink: #10201d;
+      --warn: #e07b66;
+      --preview: #111512;
+      --shadow: 0 10px 28px rgba(0, 0, 0, .34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    button, input, textarea, select { font: inherit; }
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 7px;
+      padding: 7px 10px;
+      cursor: pointer;
+      min-height: 34px;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 650;
+    }
+    button.danger { color: var(--warn); }
+    input, textarea, select {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: var(--field);
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 7px 8px;
+    }
+    textarea {
+      min-height: 70px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .app {
+      height: 100vh;
+      min-height: 720px;
+      display: grid;
+      grid-template-columns: 310px minmax(520px, 1fr) 420px;
+      grid-template-rows: auto 1fr;
+    }
+    .toolbar {
+      grid-column: 1 / 4;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
+    }
+    .toolbar .file-name {
+      flex: 1;
+      min-width: 120px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status {
+      min-width: 190px;
+      color: var(--muted);
+      text-align: right;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .status.bad { color: var(--warn); }
+    .sidebar {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 70%, var(--bg));
+    }
+    .side-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .side-actions input { grid-column: 1 / 3; }
+    .style-list { overflow: auto; padding: 8px; }
+    .style-item {
+      padding: 8px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .style-item:hover { background: var(--panel-2); }
+    .style-item.active {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    }
+    .style-name { font-weight: 700; }
+    .style-tags {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .main {
+      min-width: 0;
+      overflow: auto;
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+    .card h2, .card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+    .split-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+    .form-grid label, .field label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .section-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px 14px;
+      margin-top: 12px;
+    }
+    .field label { display: block; margin-bottom: 3px; }
+    .field.boolean {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 35px;
+    }
+    .field.boolean input { width: auto; }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tab.active {
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-color: var(--accent);
+    }
+    .preview-panel {
+      min-width: 0;
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-head {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .preview-head h2 { margin: 0; font-size: 15px; }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    canvas {
+      width: 100%;
+      height: 420px;
+      display: block;
+      background: var(--preview);
+      border-bottom: 1px solid var(--line);
+    }
+    .raw-wrap { padding: 12px; min-height: 0; }
+    .raw-json { height: 265px; }
+    .pill {
+      display: inline-block;
+      margin: 2px;
+      padding: 2px 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .drop {
+      outline: 3px solid color-mix(in srgb, var(--accent) 65%, transparent);
+      outline-offset: -6px;
+    }
+    @media (max-width: 1160px) {
+      .app {
+        grid-template-columns: 280px 1fr;
+        grid-template-rows: auto 1fr 520px;
+      }
+      .toolbar { grid-column: 1 / 3; }
+      .preview-panel {
+        grid-column: 1 / 3;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+      .top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <input id="fileInput" type="file" accept=".json,application/json" hidden>
+  <div class="app" id="app">
+    <header class="toolbar">
+      <button onclick="newConfig()">New Config</button>
+      <button onclick="openJson()">Open JSON</button>
+      <button class="primary" onclick="saveJson()">Save</button>
+      <button onclick="exportJson()">Export</button>
+      <button onclick="validateCurrent()">Validate</button>
+      <button onclick="toggleTheme()" id="themeButton">Dark</button>
+      <span class="file-name" id="fileName">No file loaded</span>
+      <span class="status" id="status"></span>
+    </header>
+    <aside class="sidebar">
+      <div class="side-actions">
+        <input id="search" placeholder="Filter styles" oninput="renderStyleList()">
+        <button onclick="addStyle()">Add</button>
+        <button onclick="duplicateStyle()">Duplicate</button>
+        <button class="danger" onclick="deleteStyle()">Delete</button>
+        <button onclick="sortStyles()">Sort A-Z</button>
+      </div>
+      <div id="styleList" class="style-list"></div>
+    </aside>
+    <main class="main">
+      <section class="card">
+        <h2>Config</h2>
+        <div id="configFields" class="top-grid"></div>
+      </section>
+      <section class="split-grid">
+        <div class="card">
+          <h2>Tags And Values</h2>
+          <div id="tagFields" class="form-grid"></div>
+        </div>
+        <div class="card">
+          <h2>Style Parameters</h2>
+          <div id="styleFields" class="form-grid"></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="tabs" id="tabs"></div>
+        <div id="sectionEditor"></div>
+      </section>
+    </main>
+    <aside class="preview-panel">
+      <div class="preview-head">
+        <div>
+          <h2>2D Facade View</h2>
+          <div class="hint">Preview of facade symmetry, windows, doors, balconies, ledges, roof and antenna settings.</div>
+        </div>
+      </div>
+      <canvas id="preview" width="840" height="760"></canvas>
+      <div class="raw-wrap">
+        <div class="card">
+          <h3>Selected Style JSON</h3>
+          <textarea id="rawJson" class="raw-json" onblur="applyRawJson()"></textarea>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <script>
+    const sectionOrder = ["window", "door", "balcony", "ledge", "roof", "antenna"];
+    const scalarFields = ["name", "default_levels", "default_floor_height", "facade_pattern", "wall_material", "wall_color", "wall_texture_path", "wall_texture_scale", "wall_color_variant_mode", "wall_row_color_mode"];
+    // facade_pattern values, mirroring EGrammarFacadePattern (BuildingGrammarCore, FacadeStyleConfig.h):
+    // "auto" infers the pattern from name/material tokens (see styleTokens/resolveFacadePatterns
+    // below), "none"/"panel_seams"/"insulation_bands"/"ornament_bands" force it explicitly.
+    const facadePatternTokens = {
+      panel_seams: ["plattenbau", "prefab", "industrial", "warehouse", "parking", "office", "curtain"],
+      insulation_bands: ["passivhaus", "contemporary", "modern", "bauhaus"],
+      ornament_bands: ["gruenderzeit", "jugendstil", "fachwerk", "historic", "altbau", "kontorhaus", "church", "cathedral", "sacral"]
+    };
+    const topFields = ["root_collection", "source_collection", "default_levels", "default_floor_height", "building_part_match_tolerance", "roof_street_alignment_search_radius", "use_mesh_instancing", "batch_generated_meshes", "enable_building_parts", "replace_existing"];
+    const styleTemplate = {
+      name: "new_style",
+      building_values: [],
+      tag_filters: {},
+      default_levels: null,
+      default_floor_height: null,
+      facade_pattern: "auto",
+      roof: null,
+      wall_material: "Grammar Facade",
+      wall_color: [0.72, 0.68, 0.6, 1.0],
+      wall_texture_path: null,
+      wall_texture_scale: 1.0,
+      wall_color_variants: [],
+      wall_color_variant_mode: "none",
+      wall_row_colors: [],
+      wall_row_color_mode: "cycle",
+      window: { width: 1.25, height: 1.55, sill_height: 0.85, spacing: 2.7, min_margin: 0.8, depth: 0.04, recess_depth: 0.10, material: "Grammar Glass", color: [0.12,0.22,0.32,1], texture_path: null, texture_scale: 1, frame_width: 0.08, frame_depth: 0.03, frame_material: "Grammar Window Frames", frame_color: [0.86,0.84,0.78,1], vertical_mullions: 1, horizontal_mullions: 0, sill_depth: 0.16, sill_thickness: 0.06, sill_material: "Grammar Window Sills", sill_color: [0.78,0.74,0.68,1] },
+      ledge: { enabled: true, depth: 0.16, height: 0.08, every_n_floors: 1, material: "Grammar Ledges", color: [0.78,0.74,0.68,1], texture_path: null, texture_scale: 1 },
+      balcony: { enabled: false, width: 1.9, depth: 0.75, slab_height: 0.12, railing_height: 0.9, every_n_floors: 2, material: "Grammar Balconies", color: [0.58,0.58,0.55,1], texture_path: null, texture_scale: 1, railing_material: "Grammar Balcony Railings", railing_color: [0.16,0.16,0.15,1], railing_bar_count: 5, railing_bar_width: 0.04, railing_bar_depth: 0.04 },
+      door: { enabled: true, placement: "first_facade", width: 1.25, height: 2.25, depth: 0.08, recess_depth: 0.05, material: "Grammar Door", color: [0.16,0.1,0.06,1], texture_path: null, texture_scale: 1, frame_width: 0.12, frame_depth: 0.04, frame_material: "Grammar Door Frames", frame_color: [0.72,0.68,0.6,1], handle_enabled: true, handle_radius: 0.05, handle_material: "Grammar Door Handles", handle_color: [0.82,0.66,0.32,1], canopy_enabled: false, canopy_width: 1.8, canopy_depth: 0.75, canopy_thickness: 0.08, canopy_material: "Grammar Door Canopies", canopy_color: [0.36,0.36,0.34,1] },
+      antenna: { enabled: true, type: "tv", count: 1, mast_height: 1.4, mast_radius: 0.035, base_width: 0.45, base_depth: 0.45, base_height: 0.18, panel_width: 0.35, panel_height: 0.7, panel_depth: 0.06, material: "Grammar Antenna Metal", color: [0.34,0.34,0.33,1], accent_material: "Grammar Antenna Panels", accent_color: [0.78,0.78,0.72,1] }
+    };
+    const defaultConfig = {
+      root_collection: "Procedural Buildings",
+      source_collection: "Buildings",
+      include_selected_only: false,
+      replace_existing: true,
+      enable_building_parts: true,
+      skip_parent_footprints_with_parts: true,
+      inherit_parent_tags_for_parts: true,
+      building_part_match_tolerance: 0.25,
+      use_mesh_instancing: true,
+      batch_generated_meshes: true,
+      batch_roles: ["window", "window_frame", "window_mullion", "window_sill", "ledge", "balcony", "balcony_rail", "balcony_bar", "door_frame", "door_handle", "door_canopy", "roof_edge", "roof_lamp", "antenna", "antenna_panel"],
+      default_levels: 4,
+      default_floor_height: 3.1,
+      irregular_floor_heights: {},
+      excluded_building_values: ["shelter"],
+      styles: [clone(styleTemplate)],
+      roof: { type: "flat", height: 0.8, overhang: 0.2, ridge_alignment: "closest_street", material: "Grammar Roof", color: [0.2,0.2,0.18,1], edge_enabled: true, edge_width: 0.28, edge_height: 0.35, surface_inset: 0.08, edge_material: "Grammar Roof Edge", edge_color: [0.22,0.22,0.2,1], tile_rows: 6, dormer_count: 0, roof_window_count: 0, chimney_count: 0 },
+      roof_street_alignment_search_radius: 80
+    };
+    let config = clone(defaultConfig);
+    let selected = 0;
+    let activeSection = "window";
+    let fileHandle = null;
+    let fileName = "Unsaved grammar config";
+
+    function clone(value) { return JSON.parse(JSON.stringify(value)); }
+    function setStatus(text, bad=false) { const el = document.getElementById("status"); el.textContent = text; el.className = bad ? "status bad" : "status"; }
+    function setTheme(theme) { document.documentElement.dataset.theme = theme; localStorage.setItem("grammarEditorTheme", theme); document.getElementById("themeButton").textContent = theme === "dark" ? "Light" : "Dark"; redraw(); }
+    function toggleTheme() { setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); }
+    function initTheme() { setTheme(localStorage.getItem("grammarEditorTheme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")); }
+    function currentStyle() { ensureStyles(); return config.styles[selected] || null; }
+    function ensureStyles() { if (!Array.isArray(config.styles)) config.styles = []; }
+    function renderAll() { ensureStyles(); document.getElementById("fileName").textContent = fileName; renderStyleList(); renderConfigFields(); renderTagFields(); renderStyleFields(); renderTabs(); renderSection(); updateRaw(); redraw(); }
+    function newConfig() { if (!confirm("Start a new config? Unsaved changes will remain only if exported.")) return; config = clone(defaultConfig); selected = 0; fileHandle = null; fileName = "Unsaved grammar config"; renderAll(); setStatus("New config"); }
+    async function openJson() {
+      if ("showOpenFilePicker" in window) {
+        try {
+          const [handle] = await showOpenFilePicker({ types: [{ description: "JSON", accept: { "application/json": [".json"] } }] });
+          const file = await handle.getFile();
+          await loadFile(file);
+          fileHandle = handle;
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return;
+        }
+      }
+      document.getElementById("fileInput").click();
+    }
+    document.getElementById("fileInput").addEventListener("change", async event => {
+      const file = event.target.files[0];
+      if (file) await loadFile(file);
+      event.target.value = "";
+    });
+    async function loadFile(file) {
+      try {
+        const data = JSON.parse(await file.text());
+        validateConfig(data);
+        config = data;
+        selected = 0;
+        fileName = file.name;
+        renderAll();
+        setStatus(`${file.name} loaded`);
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    }
+    async function saveJson() {
+      try {
+        validateConfig(config);
+        const text = JSON.stringify(config, null, 2) + "\n";
+        if (fileHandle && "createWritable" in fileHandle) {
+          const writable = await fileHandle.createWritable();
+          await writable.write(text);
+          await writable.close();
+          setStatus("Saved");
+        } else if ("showSaveFilePicker" in window) {
+          fileHandle = await showSaveFilePicker({ suggestedName: fileName.endsWith(".json") ? fileName : "building_grammar_config.json", types: [{ description: "JSON", accept: { "application/json": [".json"] } }] });
+          const writable = await fileHandle.createWritable();
+          await writable.write(text);
+          await writable.close();
+          const savedFile = await fileHandle.getFile();
+          fileName = savedFile.name;
+          renderAll();
+          setStatus("Saved");
+        } else {
+          downloadJson();
+          setStatus("Downloaded");
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") setStatus(err.message, true);
+      }
+    }
+    function exportJson() { try { validateConfig(config); downloadJson(); setStatus("Exported"); } catch (err) { setStatus(err.message, true); } }
+    function downloadJson() {
+      const blob = new Blob([JSON.stringify(config, null, 2) + "\n"], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName.endsWith(".json") ? fileName : "building_grammar_config.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+    function validateConfig(data) {
+      if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Config root must be an object");
+      if (!Array.isArray(data.styles)) throw new Error("Config must contain a styles list");
+      data.styles.forEach((style, index) => {
+        if (!style || typeof style !== "object" || Array.isArray(style)) throw new Error(`styles[${index}] must be an object`);
+        if (!String(style.name || "").trim()) throw new Error(`styles[${index}] needs a name`);
+        if (style.tag_filters && (typeof style.tag_filters !== "object" || Array.isArray(style.tag_filters))) throw new Error(`${style.name}: tag_filters must be an object`);
+      });
+      return true;
+    }
+    function validateCurrent() { try { validateConfig(config); setStatus(`${config.styles.length} styles valid`); } catch (err) { setStatus(err.message, true); } }
+    function renderStyleList() {
+      const q = (document.getElementById("search").value || "").toLowerCase();
+      const host = document.getElementById("styleList");
+      host.innerHTML = "";
+      config.styles.forEach((style, index) => {
+        const tagText = tagsForStyle(style);
+        if (q && !`${style.name} ${tagText}`.toLowerCase().includes(q)) return;
+        const item = document.createElement("div");
+        item.className = `style-item${index === selected ? " active" : ""}`;
+        item.onclick = () => { selected = index; renderAll(); };
+        item.innerHTML = `<div class="style-name">${escapeHtml(style.name || "<unnamed>")}</div><div class="style-tags">${escapeHtml(tagText || "No tags")}</div>`;
+        host.appendChild(item);
+      });
+    }
+    function tagsForStyle(style) {
+      const values = Array.isArray(style.building_values) ? style.building_values : [];
+      const filters = Object.entries(style.tag_filters || {}).map(([key, value]) => `${key}=${Array.isArray(value) ? value.join("|") : value}`);
+      return values.concat(filters).join(", ");
+    }
+    function renderConfigFields() {
+      const host = document.getElementById("configFields");
+      host.innerHTML = "";
+      topFields.forEach(key => host.appendChild(fieldElement(key, config[key], value => { config[key] = value; markChanged(); })));
+    }
+    function renderTagFields() {
+      const style = currentStyle();
+      const host = document.getElementById("tagFields");
+      host.innerHTML = "";
+      if (!style) return;
+      host.appendChild(label("building_values"));
+      host.appendChild(input((style.building_values || []).join(", "), value => { style.building_values = csv(value); markChanged(); renderStyleList(); updateRaw(); }));
+      host.appendChild(label("tag_filters JSON"));
+      const area = document.createElement("textarea");
+      area.value = JSON.stringify(style.tag_filters || {}, null, 2);
+      area.onblur = () => {
+        try { style.tag_filters = JSON.parse(area.value || "{}"); markChanged(); renderStyleList(); updateRaw(); }
+        catch { setStatus("Invalid tag_filters JSON", true); }
+      };
+      host.appendChild(area);
+    }
+    function renderStyleFields() {
+      const style = currentStyle();
+      const host = document.getElementById("styleFields");
+      host.innerHTML = "";
+      if (!style) return;
+      scalarFields.forEach(key => {
+        host.appendChild(label(key));
+        host.appendChild(input(formatValue(style[key]), value => { style[key] = parseValue(value, style[key]); markChanged(); renderStyleList(); redraw(); updateRaw(); }));
+      });
+    }
+    function renderTabs() {
+      const host = document.getElementById("tabs");
+      host.innerHTML = "";
+      sectionOrder.concat(["raw"]).forEach(name => {
+        const button = document.createElement("button");
+        button.textContent = name;
+        button.className = `tab${activeSection === name ? " active" : ""}`;
+        button.onclick = () => { activeSection = name; renderTabs(); renderSection(); };
+        host.appendChild(button);
+      });
+    }
+    function renderSection() {
+      const style = currentStyle();
+      const host = document.getElementById("sectionEditor");
+      host.innerHTML = "";
+      if (!style) return;
+      if (activeSection === "raw") {
+        const p = document.createElement("p");
+        p.className = "hint";
+        p.textContent = "Edit the selected style as JSON in the panel on the right. Changes apply when the field loses focus.";
+        host.appendChild(p);
+        return;
+      }
+      if (activeSection === "roof" && !style.roof) {
+        const button = document.createElement("button");
+        button.textContent = "Enable style-specific roof";
+        button.onclick = () => { style.roof = clone(config.roof || defaultConfig.roof); markChanged(); renderSection(); updateRaw(); redraw(); };
+        host.appendChild(button);
+        return;
+      }
+      if (!style[activeSection]) style[activeSection] = clone(styleTemplate[activeSection] || {});
+      const section = style[activeSection];
+      const keys = Array.from(new Set(Object.keys(styleTemplate[activeSection] || {}).concat(Object.keys(section)))).sort();
+      const grid = document.createElement("div");
+      grid.className = "section-grid";
+      keys.forEach(key => grid.appendChild(fieldElement(key, section[key], value => { section[key] = value; markChanged(); updateRaw(); redraw(); })));
+      host.appendChild(grid);
+      if (activeSection === "roof") {
+        const button = document.createElement("button");
+        button.className = "danger";
+        button.style.marginTop = "12px";
+        button.textContent = "Use global roof";
+        button.onclick = () => { style.roof = null; markChanged(); renderSection(); updateRaw(); redraw(); };
+        host.appendChild(button);
+      }
+    }
+    function fieldElement(key, value, onChange) {
+      const wrap = document.createElement("div");
+      wrap.className = `field${typeof value === "boolean" ? " boolean" : ""}`;
+      const lab = document.createElement("label");
+      lab.textContent = key;
+      if (typeof value === "boolean") {
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = value;
+        cb.onchange = () => onChange(cb.checked);
+        wrap.appendChild(cb);
+        wrap.appendChild(lab);
+      } else {
+        wrap.appendChild(lab);
+        wrap.appendChild(input(formatValue(value), text => onChange(parseValue(text, value))));
+      }
+      return wrap;
+    }
+    function label(text) { const el = document.createElement("label"); el.textContent = text; return el; }
+    function input(value, onChange) { const el = document.createElement("input"); el.value = value; el.onchange = () => onChange(el.value); return el; }
+    function csv(value) { return String(value).split(",").map(item => item.trim()).filter(Boolean); }
+    function formatValue(value) { if (value === null || value === undefined) return ""; if (Array.isArray(value) || typeof value === "object") return JSON.stringify(value); return String(value); }
+    function parseValue(text, oldValue) {
+      const value = String(text).trim();
+      if (value === "") return null;
+      if (Array.isArray(oldValue) || (oldValue && typeof oldValue === "object")) {
+        try { return JSON.parse(value); } catch { setStatus("Invalid JSON value", true); return oldValue; }
+      }
+      if (typeof oldValue === "number") {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : oldValue;
+      }
+      if (value === "true") return true;
+      if (value === "false") return false;
+      if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+      return text;
+    }
+    function addStyle() { config.styles.push({ ...clone(styleTemplate), name: uniqueName("new_style") }); selected = config.styles.length - 1; markChanged(); renderAll(); }
+    function duplicateStyle() { const style = currentStyle(); if (!style) return; const copy = clone(style); copy.name = uniqueName(`${copy.name || "style"}_copy`); config.styles.splice(selected + 1, 0, copy); selected += 1; markChanged(); renderAll(); }
+    function deleteStyle() { if (!currentStyle() || !confirm("Delete selected style?")) return; config.styles.splice(selected, 1); selected = Math.max(0, Math.min(selected, config.styles.length - 1)); markChanged(); renderAll(); }
+    function sortStyles() { config.styles.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""))); selected = 0; markChanged(); renderAll(); }
+    function uniqueName(base) { const names = new Set(config.styles.map(style => style.name)); let name = base; let index = 2; while (names.has(name)) name = `${base}_${index++}`; return name; }
+    function updateRaw() { const style = currentStyle(); document.getElementById("rawJson").value = style ? JSON.stringify(style, null, 2) : ""; }
+    function applyRawJson() {
+      if (activeSection !== "raw") return;
+      try {
+        const parsed = JSON.parse(document.getElementById("rawJson").value);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Style JSON must be an object");
+        config.styles[selected] = parsed;
+        markChanged();
+        renderAll();
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    }
+    function markChanged() { setStatus("Modified"); }
+
+    // Port of GrammarWallWindow::WindowOffsets (BuildingGrammarCore, GrammarWallWindow.cpp) --
+    // centers as many Width-wide, Spacing-period windows as fit within [Margin, Length-Margin],
+    // returning their center offsets (meters, measured from the facade's own start). Returns []
+    // if even one window doesn't fit -- the real engine draws no windows on that facade segment
+    // rather than forcing one in, so the preview shouldn't either.
+    function windowOffsets(length, width, spacing, margin) {
+      const usable = length - margin * 2;
+      if (usable < width || width <= 0 || spacing <= 0) return [];
+      const count = Math.max(1, Math.floor((usable + spacing - width) / spacing));
+      const totalWidth = (count - 1) * spacing + width;
+      const start = (length - totalWidth) / 2 + width / 2;
+      const offsets = [];
+      for (let i = 0; i < count; i++) offsets.push(start + i * spacing);
+      return offsets;
+    }
+
+    // Port of GrammarEngineInternal::StyleTokens (GrammarEngineInternal.cpp), restricted to the
+    // style's own fields -- there is no real OSM building to read tags from in a style-only
+    // preview, so this omits the Tags half StyleTokens also joins in (building=*, shop=*, ...).
+    function styleTokens(style) {
+      const parts = [style.name, style.wall_material, (style.window || {}).material, (style.ledge || {}).material];
+      const raw = parts.filter(Boolean).join(" ").toLowerCase().replace(/[_\-:]/g, " ");
+      return new Set(raw.split(/\s+/).filter(Boolean));
+    }
+    function hasAny(tokens, values) { return values.some(value => tokens.has(value)); }
+
+    // Port of GrammarFacadeDepth.cpp's FacadePatternPlacements resolution: an explicit
+    // facade_pattern overrides and forces exactly one pattern (or none); "auto" (or unset, the
+    // default) infers it from styleTokens -- and, matching the engine exactly, more than one
+    // pattern can be active at once under auto, since the three keyword checks are independent.
+    function resolveFacadePatterns(style) {
+      const explicit = String(style.facade_pattern || "auto").toLowerCase();
+      if (explicit === "none") return [];
+      if (explicit in facadePatternTokens) return [explicit];
+      const tokens = styleTokens(style);
+      return Object.keys(facadePatternTokens).filter(pattern => hasAny(tokens, facadePatternTokens[pattern]));
+    }
+
+    // Port of FacadePatternPlacements' geometry (GrammarFacadeDepth.cpp) at preview scale: vertical
+    // panel seams every ~3.2m (clamped to 1-8) plus a seam at each floor line for panel_seams; a
+    // shadow band at each floor line for insulation_bands; a cornice band + pilasters for
+    // ornament_bands. lengthM is the same "facade segment length" windowOffsets uses, so seam/band
+    // spacing lines up with the facade rectangle actually drawn.
+    function drawFacadePattern(ctx, style, left, width, baseY, floorHeight, scale, levels, lengthM) {
+      const patterns = resolveFacadePatterns(style);
+      const totalHeight = levels * floorHeight * scale;
+      const top = baseY - totalHeight;
+
+      if (patterns.includes("panel_seams")) {
+        const verticalCount = Math.min(Math.max(Math.floor(lengthM / 3.2), 1), 8);
+        ctx.strokeStyle = "rgba(51,52,51,.85)";
+        ctx.lineWidth = 1.5;
+        for (let i = 1; i <= verticalCount; i++) {
+          const x = left + width * i / (verticalCount + 1);
+          ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, baseY); ctx.stroke();
+        }
+        ctx.lineWidth = 2.5;
+        for (let floor = 1; floor < levels; floor++) {
+          const y = baseY - floor * floorHeight * scale;
+          ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + width, y); ctx.stroke();
+        }
+      }
+      if (patterns.includes("insulation_bands")) {
+        ctx.fillStyle = "rgba(199,199,184,.85)";
+        for (let floor = 1; floor < levels; floor++) {
+          const y = baseY - floor * floorHeight * scale;
+          ctx.fillRect(left + width * 0.03, y - 2, width * 0.94, 5);
+        }
+      }
+      if (patterns.includes("ornament_bands")) {
+        ctx.fillStyle = "rgba(199,184,158,.85)";
+        for (let floor = 1; floor < levels; floor++) {
+          const y = baseY - floor * floorHeight * scale;
+          ctx.fillRect(left + width * 0.04, y - 3, width * 0.92, 6);
+        }
+        const tokens = styleTokens(style);
+        const sacral = hasAny(tokens, ["church", "cathedral", "sacral"]);
+        const pilasterCount = sacral
+          ? Math.min(Math.max(Math.floor(lengthM / 3.2), 2), 8)
+          : Math.min(Math.max(Math.floor(lengthM / 4.0), 1), 5);
+        ctx.fillStyle = "rgba(184,168,143,.85)";
+        for (let i = 1; i <= pilasterCount; i++) {
+          const x = left + width * i / (pilasterCount + 1);
+          ctx.fillRect(x - 2, top, 4, totalHeight);
+        }
+      }
+      return patterns;
+    }
+
+    function redraw() {
+      const canvas = document.getElementById("preview");
+      const ctx = canvas.getContext("2d");
+      const style = currentStyle();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const dark = document.documentElement.dataset.theme === "dark";
+      ctx.fillStyle = dark ? "#111512" : "#e5e9e4";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!style) return;
+      const levels = Math.max(1, Number(style.default_levels || config.default_levels || 4));
+      const floorHeight = Math.max(1, Number(style.default_floor_height || config.default_floor_height || 3.1));
+      const roof = style.roof || config.roof || {};
+      const totalHeight = levels * floorHeight;
+      const baseY = 690;
+      const width = 560;
+      const scale = 520 / (totalHeight + Number(roof.height || 1.2) + 1);
+      const left = (canvas.width - width) / 2;
+      const facadeHeight = totalHeight * scale;
+      const top = baseY - facadeHeight;
+      ctx.fillStyle = dark ? "#0b0d0c" : "#d8d4c8";
+      ctx.fillRect(left - 26, baseY + 7, width + 52, 13);
+      ctx.fillStyle = color(style.wall_color, dark ? "#746f64" : "#b8ad98");
+      ctx.strokeStyle = dark ? "#d0cabe" : "#3d403c";
+      ctx.lineWidth = 2;
+      ctx.fillRect(left, top, width, facadeHeight);
+      ctx.strokeRect(left, top, width, facadeHeight);
+      ctx.strokeStyle = dark ? "rgba(230,226,215,.34)" : "rgba(70,66,58,.42)";
+      ctx.lineWidth = 1;
+      for (let floor = 1; floor < levels; floor++) {
+        const y = baseY - floor * floorHeight * scale;
+        ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + width, y); ctx.stroke();
+      }
+      // The facade's own represented length in meters, derived from the fixed drawn pixel width at
+      // the same px-per-meter scale already used for heights (uniform scale, no horizontal
+      // distortion) -- this is what windowOffsets/drawFacadePattern place things along, so seam
+      // spacing and window count both respond correctly to the style's real Width/Spacing/Margin.
+      const lengthM = width / scale;
+      const patterns = drawFacadePattern(ctx, style, left, width, baseY, floorHeight, scale, levels, lengthM);
+      drawLedges(ctx, style, left, width, baseY, floorHeight, scale, levels);
+      drawWindowsAndBalconies(ctx, style, left, width, baseY, floorHeight, scale, levels, lengthM);
+      drawDoor(ctx, style, left, width, baseY, scale);
+      drawRoof(ctx, left, top, width, roof, scale);
+      drawAntenna(ctx, left + width * .72, top, style.antenna || {}, scale);
+      ctx.fillStyle = dark ? "#ece9df" : "#242526";
+      ctx.font = "18px sans-serif";
+      ctx.fillText(style.name || "", 18, 34);
+      ctx.fillStyle = dark ? "#aab2aa" : "#66706a";
+      ctx.font = "12px sans-serif";
+      ctx.fillText(`${levels} levels, ${floorHeight}m floor height, ${lengthM.toFixed(1)}m facade`, 18, 54);
+      ctx.fillText(`Facade pattern: ${patterns.length ? patterns.join(" + ") : "none"} (${String(style.facade_pattern || "auto").toLowerCase()})`, 18, 70);
+      const win = style.window || {};
+      let depthLine = `Window: glass ${describeDepthM(windowGlassOffsetM(win))}, frame ${describeDepthM(windowFrameOffsetM(win))}`;
+      if ((style.door || {}).enabled) {
+        depthLine += ` · Door: ${describeDepthM(doorOffsetM(style.door))}`;
+      }
+      ctx.fillText(depthLine, 18, 86);
+    }
+    function drawLedges(ctx, style, left, width, baseY, floorHeight, scale, levels) {
+      const ledge = style.ledge || {};
+      if (!ledge.enabled) return;
+      ctx.fillStyle = color(ledge.color, "#b8afa0");
+      const step = Math.max(1, Number(ledge.every_n_floors || 1));
+      for (let floor = 0; floor <= levels; floor += step) {
+        const y = baseY - floor * floorHeight * scale - 3;
+        ctx.fillRect(left - 10, y, width + 20, Math.max(3, Number(ledge.height || .08) * scale));
+      }
+    }
+    function drawWindowsAndBalconies(ctx, style, left, width, baseY, floorHeight, scale, levels, lengthM) {
+      const win = style.window || {};
+      const winWidthM = Math.max(0.01, Number(win.width || 1.2));
+      const offsetsM = windowOffsets(lengthM, winWidthM, Math.max(0.01, Number(win.spacing || 2.7)), Math.max(0, Number(win.min_margin || 0)));
+      const ww = Math.max(4, winWidthM * scale);
+      const wh = Math.max(6, Number(win.height || 1.4) * scale);
+      const door = style.door || {};
+      // Same carve-out the engine's own door placement makes on the street-facing side (ground
+      // floor only) -- find whichever window sits closest to the facade's own center, matching
+      // "first_facade" placement, instead of assuming a fixed middle grid column.
+      let centerSkipOffset = null;
+      if (door.enabled && offsetsM.length) {
+        centerSkipOffset = offsetsM.reduce((best, o) => Math.abs(o - lengthM / 2) < Math.abs(best - lengthM / 2) ? o : best, offsetsM[0]);
+      }
+      for (let floor = 0; floor < levels; floor++) {
+        const y = baseY - (floor + 1) * floorHeight * scale + Number(win.sill_height || .8) * scale;
+        offsetsM.forEach(offsetM => {
+          if (floor === 0 && offsetM === centerSkipOffset) return;
+          const centerX = left + offsetM * scale;
+          drawWindow(ctx, centerX - ww / 2, y, ww, wh, win);
+          const balcony = style.balcony || {};
+          if (balcony.enabled && floor > 0 && floor % Math.max(1, Number(balcony.every_n_floors || 2)) === 0) {
+            drawBalcony(ctx, centerX, y + wh + 5, Math.max(ww * 1.35, Number(balcony.width || 1.9) * scale), balcony);
+          }
+        });
+      }
+    }
+    // Depth (Window/Door.RecessDepth vs. Depth+FrameDepth -- see GrammarWallRecess.cpp's opening-
+    // pocket carving and GrammarPlacementHelpers.cpp's MakeBoxPlacement) has no axis in this flat
+    // front elevation, so it's faked the way flat 2D UI has always faked bevels: an inset shadow
+    // for anything sitting behind the D=0 wall/panel plane, an outset drop-shadow+highlight for
+    // anything sitting proud of it. offsetM is signed meters (negative = recessed, positive = proud),
+    // computed with the exact same formulas the engine uses, so what you see here tracks the real
+    // generation, not a guess.
+    function windowGlassOffsetM(win) {
+      return Number(win.depth ?? 0.04) - Number(win.recess_depth ?? 0.10);
+    }
+    function windowFrameOffsetM(win) {
+      return Number(win.depth ?? 0.04) + Math.max(Number(win.frame_depth ?? 0.03), 0) - Number(win.recess_depth ?? 0.10);
+    }
+    function doorOffsetM(door) {
+      return Number(door.depth ?? 0.08) - Number(door.recess_depth ?? 0.05);
+    }
+    function doorFrameOffsetM(door) {
+      return Number(door.depth ?? 0.08) + Math.max(Number(door.frame_depth ?? 0.04), 0) - Number(door.recess_depth ?? 0.05);
+    }
+    function describeDepthM(offsetM) {
+      const cm = Math.abs(offsetM) * 100;
+      if (cm < 0.5) return "flush";
+      return `${cm.toFixed(1)}cm ${offsetM < 0 ? "recessed" : "proud"}`;
+    }
+    function drawDepthHintInset(ctx, x, y, w, h, offsetM) {
+      if (offsetM >= -0.005) return; // Not meaningfully recessed -- skip, avoid noise on ~flush elements.
+      const strength = Math.min(1, Math.abs(offsetM) / 0.15); // 15cm+ recess reads as "fully" shadowed.
+      const bandPx = Math.max(2, Math.min(w, h) * 0.22 * strength);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      const shadow = ctx.createLinearGradient(x, y, x + bandPx * 1.6, y + bandPx * 1.6);
+      shadow.addColorStop(0, `rgba(0,0,0,${0.55 * strength})`);
+      shadow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = shadow;
+      ctx.fillRect(x, y, w, h);
+      const bounce = ctx.createLinearGradient(x + w, y + h, x + w - bandPx, y + h - bandPx);
+      bounce.addColorStop(0, `rgba(255,255,255,${0.22 * strength})`);
+      bounce.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = bounce;
+      ctx.fillRect(x, y, w, h);
+      ctx.restore();
+    }
+    function drawDepthHintOutset(ctx, x, y, w, h, offsetM) {
+      if (offsetM <= 0.005) return; // Not meaningfully proud -- skip.
+      const strength = Math.min(1, offsetM / 0.06); // 6cm+ proud reads as "fully" raised.
+      const off = Math.max(1.5, 3 * strength);
+      ctx.save();
+      ctx.strokeStyle = `rgba(0,0,0,${0.35 * strength})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + off, y + h + off); ctx.lineTo(x + w + off, y + h + off); ctx.lineTo(x + w + off, y + off);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${0.55 * strength})`;
+      ctx.beginPath();
+      ctx.moveTo(x - off, y + h - off); ctx.lineTo(x - off, y - off); ctx.lineTo(x + w - off, y - off);
+      ctx.stroke();
+      ctx.restore();
+    }
+    function drawWindow(ctx, x, y, width, height, win) {
+      ctx.fillStyle = color(win.color, "#1f3a45");
+      ctx.fillRect(x, y, width, height);
+      drawDepthHintInset(ctx, x, y, width, height, windowGlassOffsetM(win));
+      ctx.strokeStyle = color(win.frame_color, "#e5ddcd");
+      ctx.lineWidth = Math.max(2, Number(win.frame_width || .08) * 18);
+      ctx.strokeRect(x, y, width, height);
+      drawDepthHintOutset(ctx, x, y, width, height, windowFrameOffsetM(win));
+      ctx.lineWidth = 1;
+      const vm = Number(win.vertical_mullions || 0);
+      for (let i = 1; i <= vm; i++) { const xx = x + width * i / (vm + 1); ctx.beginPath(); ctx.moveTo(xx, y); ctx.lineTo(xx, y + height); ctx.stroke(); }
+      const hm = Number(win.horizontal_mullions || 0);
+      for (let i = 1; i <= hm; i++) { const yy = y + height * i / (hm + 1); ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + width, yy); ctx.stroke(); }
+      ctx.fillStyle = color(win.sill_color, "#c9c0b0");
+      ctx.fillRect(x - 4, y + height + 2, width + 8, 4);
+    }
+    function drawBalcony(ctx, centerX, y, width, balcony) {
+      ctx.fillStyle = color(balcony.color, "#898985");
+      ctx.fillRect(centerX - width / 2, y, width, 7);
+      ctx.strokeStyle = color(balcony.railing_color, "#1e1f1d");
+      ctx.lineWidth = 2;
+      ctx.strokeRect(centerX - width / 2, y - 24, width, 24);
+      const bars = Number(balcony.railing_bar_count || 4);
+      for (let i = 1; i <= bars; i++) { const x = centerX - width / 2 + width * i / (bars + 1); ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.lineTo(x, y); ctx.stroke(); }
+    }
+    function drawDoor(ctx, style, left, width, baseY, scale) {
+      const door = style.door || {};
+      if (!door.enabled) return;
+      const dw = Math.max(20, Number(door.width || 1.2) * scale);
+      const dh = Math.max(30, Number(door.height || 2.2) * scale);
+      const x = left + width / 2 - dw / 2;
+      const y = baseY - dh;
+      ctx.fillStyle = color(door.color, "#3a2014");
+      ctx.fillRect(x, y, dw, dh);
+      drawDepthHintInset(ctx, x, y, dw, dh, doorOffsetM(door));
+      ctx.strokeStyle = color(door.frame_color, "#c3b692");
+      ctx.lineWidth = Math.max(2, Number(door.frame_width || .12) * scale);
+      ctx.strokeRect(x, y, dw, dh);
+      drawDepthHintOutset(ctx, x, y, dw, dh, doorFrameOffsetM(door));
+      if (door.canopy_enabled) {
+        ctx.fillStyle = color(door.canopy_color, "#575855");
+        ctx.fillRect(x - dw * .22, y - 12, dw * 1.44, 10);
+      }
+    }
+    function drawRoof(ctx, left, top, width, roof, scale) {
+      const rh = Math.max(12, Number(roof.height || 1.2) * scale);
+      ctx.fillStyle = color(roof.color, "#35211b");
+      ctx.strokeStyle = document.documentElement.dataset.theme === "dark" ? "#d7d0c4" : "#333";
+      const type = String(roof.type || "flat").toLowerCase();
+      if (type === "gabled" || type === "hipped") {
+        ctx.beginPath(); ctx.moveTo(left - 12, top); ctx.lineTo(left + width / 2, top - rh); ctx.lineTo(left + width + 12, top); ctx.closePath(); ctx.fill(); ctx.stroke();
+      } else if (type === "pyramid") {
+        ctx.beginPath(); ctx.moveTo(left - 12, top); ctx.lineTo(left + width / 2, top - rh); ctx.lineTo(left + width + 12, top); ctx.lineTo(left + width * .78, top + rh * .18); ctx.lineTo(left + width * .22, top + rh * .18); ctx.closePath(); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.fillRect(left - 8, top - rh * .45, width + 16, rh * .45);
+        ctx.strokeRect(left - 8, top - rh * .45, width + 16, rh * .45);
+      }
+      if (Number(roof.tile_rows || 0) > 0 && type !== "flat") {
+        ctx.strokeStyle = "rgba(255,255,255,.22)";
+        for (let i = 1; i < Math.min(12, Number(roof.tile_rows)); i++) {
+          const y = top - rh + rh * i / Number(roof.tile_rows);
+          ctx.beginPath(); ctx.moveTo(left + width * .5 - width * .45 * i / Number(roof.tile_rows), y); ctx.lineTo(left + width * .5 + width * .45 * i / Number(roof.tile_rows), y); ctx.stroke();
+        }
+      }
+    }
+    function drawAntenna(ctx, x, top, antenna, scale) {
+      if (!antenna.enabled) return;
+      const count = Math.max(0, Number(antenna.count || 0));
+      const h = Math.max(15, Number(antenna.mast_height || 1.2) * scale);
+      ctx.strokeStyle = color(antenna.color, "#444");
+      ctx.lineWidth = Math.max(2, Number(antenna.mast_radius || .03) * 80);
+      for (let i = 0; i < count; i++) {
+        const xx = x + i * 20;
+        ctx.beginPath(); ctx.moveTo(xx, top - 4); ctx.lineTo(xx, top - 4 - h); ctx.stroke();
+        ctx.fillStyle = color(antenna.accent_color, "#cac7b8");
+        ctx.fillRect(xx - 10, top - 4 - h + 8, 20, 5);
+      }
+    }
+    function color(value, fallback) {
+      if (!Array.isArray(value)) return fallback;
+      const rgb = value.slice(0, 3).map(channel => Math.max(0, Math.min(255, Math.round(Number(channel) * 255))));
+      return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    }
+    function escapeHtml(value) { return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c])); }
+    const app = document.getElementById("app");
+    app.addEventListener("dragover", event => { event.preventDefault(); app.classList.add("drop"); });
+    app.addEventListener("dragleave", () => app.classList.remove("drop"));
+    app.addEventListener("drop", async event => {
+      event.preventDefault();
+      app.classList.remove("drop");
+      const file = event.dataTransfer.files[0];
+      if (file) await loadFile(file);
+    });
+    initTheme();
+    renderAll();
+  </script>
+</body>
+</html>

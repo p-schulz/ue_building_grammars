@@ -18,11 +18,18 @@ namespace
 		return FGrammarPlacementHelpers::MakeBoxPlacement(Role, VariantKey, Params, Color);
 	}
 
-	TArray<FGrammarPlacementRecord> FacadePatternPlacements(const FVector2D& Start, const FVector2D& Tangent, const FVector2D& Normal, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, double Length)
+	TArray<FGrammarPlacementRecord> FacadePatternPlacements(const FVector2D& Start, const FVector2D& Tangent, const FVector2D& Normal, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, double Length, EGrammarFacadePattern Pattern)
 	{
 		TArray<FGrammarPlacementRecord> Result;
 
-		if (GrammarEngineInternal::HasAny(Tokens, { TEXT("plattenbau"), TEXT("prefab"), TEXT("industrial"), TEXT("warehouse"), TEXT("parking"), TEXT("office"), TEXT("curtain") }))
+		if (Pattern == EGrammarFacadePattern::None)
+		{
+			return Result;
+		}
+		const bool bAuto = Pattern == EGrammarFacadePattern::Auto;
+
+		if (Pattern == EGrammarFacadePattern::PanelSeams
+			|| (bAuto && GrammarEngineInternal::HasAny(Tokens, { TEXT("plattenbau"), TEXT("prefab"), TEXT("industrial"), TEXT("warehouse"), TEXT("parking"), TEXT("office"), TEXT("curtain") })))
 		{
 			const int32 VerticalCount = FMath::Min(FMath::Max(static_cast<int32>(Length / 3.2), 1), 8);
 			for (int32 Index = 1; Index <= VerticalCount; ++Index)
@@ -38,7 +45,8 @@ namespace
 			}
 		}
 
-		if (GrammarEngineInternal::HasAny(Tokens, { TEXT("passivhaus"), TEXT("contemporary"), TEXT("modern"), TEXT("bauhaus") }))
+		if (Pattern == EGrammarFacadePattern::InsulationBands
+			|| (bAuto && GrammarEngineInternal::HasAny(Tokens, { TEXT("passivhaus"), TEXT("contemporary"), TEXT("modern"), TEXT("bauhaus") })))
 		{
 			const TArray<double> FloorBottoms = FGrammarGeometry2D::FloorBottoms(FloorHeights);
 			for (int32 FloorIndex = 1; FloorIndex < FloorBottoms.Num(); ++FloorIndex)
@@ -48,7 +56,8 @@ namespace
 			}
 		}
 
-		if (GrammarEngineInternal::HasAny(Tokens, { TEXT("gruenderzeit"), TEXT("jugendstil"), TEXT("fachwerk"), TEXT("historic"), TEXT("altbau"), TEXT("kontorhaus"), TEXT("church"), TEXT("cathedral"), TEXT("sacral") }))
+		if (Pattern == EGrammarFacadePattern::OrnamentBands
+			|| (bAuto && GrammarEngineInternal::HasAny(Tokens, { TEXT("gruenderzeit"), TEXT("jugendstil"), TEXT("fachwerk"), TEXT("historic"), TEXT("altbau"), TEXT("kontorhaus"), TEXT("church"), TEXT("cathedral"), TEXT("sacral") })))
 		{
 			const TArray<double> FloorBottoms = FGrammarGeometry2D::FloorBottoms(FloorHeights);
 			for (int32 FloorIndex = 1; FloorIndex < FloorBottoms.Num(); ++FloorIndex)
@@ -75,7 +84,7 @@ namespace
 
 namespace GrammarFacadeDepth
 {
-	TArray<FGrammarPlacementRecord> FacadeDepthPlacements(int32 SideIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, int32 StreetSideIndex, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, const TMap<FString, FString>& Tags)
+	TArray<FGrammarPlacementRecord> FacadeDepthPlacements(int32 SideIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, int32 StreetSideIndex, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, const TMap<FString, FString>& Tags, EGrammarFacadePattern Pattern)
 	{
 		const double Length = FGrammarGeometry2D::Distance2D(Start, End);
 		TArray<FGrammarPlacementRecord> Result;
@@ -137,7 +146,7 @@ namespace GrammarFacadeDepth
 			Result.Add(PanelPlacement(TEXT("stair_core"), TEXT("Grammar Stair Core Glass"), Start, Tangent, Normal, Length * 0.5, CoreWidth, 0.2, CoreHeight, 0.06, FLinearColor(0.09, 0.18, 0.22, 0.82)));
 		}
 
-		Result.Append(FacadePatternPlacements(Start, Tangent, Normal, FloorHeights, TotalHeight, Tokens, Length));
+		Result.Append(FacadePatternPlacements(Start, Tangent, Normal, FloorHeights, TotalHeight, Tokens, Length, Pattern));
 		return Result;
 	}
 }

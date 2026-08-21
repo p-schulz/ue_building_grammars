@@ -2,10 +2,24 @@
 
 #include "CoreMinimal.h"
 #include "EdMode.h"
+#include "Parcel/GrammarParcelTypes.h"
 
 class ABuildingInstancePoolActor;
 class UBuildingGrammarEdModeSettings;
 enum class EBuildingGrammarEditTool : uint8;
+
+// Payload for FBuildingPickEdMode::OnBlockPicked -- everything FBuildingGrammarEditorModule::
+// HandleBlockPicked needs to show a regenerate panel and later act on it, without needing to reach
+// back into the mode's settings itself. ParcelConfig/Method are the mode's current global values at
+// pick time, used only to pre-fill the panel -- not re-read afterward.
+struct FGrammarBlockPickInfo
+{
+	int32 BlockId = INDEX_NONE;
+	TArray<FVector2D> BlockBoundary; // Meters, closed ring, no repeated first point.
+	FString DominantRoadTagHint;
+	FGrammarParcelConfig ParcelConfig;
+	EGrammarParcelSubdivisionMethod Method = EGrammarParcelSubdivisionMethod::Hybrid;
+};
 
 // Building Grammar editor mode. Its toolkit owns OSM-asset/config generation controls plus the
 // active-tool/style-dropdown settings (see UBuildingGrammarEdModeSettings::ActiveTool). Three
@@ -31,6 +45,9 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBuildingPicked, ABuildingInstancePoolActor* /*Pool*/, const FString& /*SourceName*/);
 	static FOnBuildingPicked OnBuildingPicked;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBlockPicked, const FGrammarBlockPickInfo&);
+	static FOnBlockPicked OnBlockPicked;
 
 	// User-declared (defined out-of-line in the .cpp, where FScopedTransaction is a complete type) so
 	// TUniquePtr<FScopedTransaction>'s implicit destructor call doesn't need FScopedTransaction
@@ -69,6 +86,15 @@ private:
 
 	TWeakObjectPtr<ABuildingInstancePoolActor> SelectedBuildingPool;
 	FString SelectedBuildingSourceName;
+
+	// ---------------------------------------------------------------- Block tool
+	// Casts the click ray against world geometry (falling back to the Z=0 plane, same reasoning as
+	// TraceCursorToWorld) to find a world point, then checks it against every block boundary in
+	// Settings->LastParcelDebugData (FGrammarGeometry2D::PointInRing) -- unlike Select, there's no
+	// actor to hit-proxy against, since blocks aren't actors. Broadcasts OnBlockPicked on a match;
+	// FBuildingGrammarEditorModule owns showing/updating the regenerate panel from there, same
+	// ownership split as Select/OnBuildingPicked.
+	bool HandleBlockPickClick(FEditorViewportClient* InViewportClient, const FViewportClick& Click);
 
 	// ---------------------------------------------------------------- Place tool
 	TArray<FVector> DraftPoints; // World cm, in the horizontal plane the user has been clicking on.

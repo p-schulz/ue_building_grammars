@@ -3,10 +3,36 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Config/BuildingGrammarConfig.h"
+#include "Parcel/GrammarParcelTypes.h"
 #include "BuildingGenerationLibrary.generated.h"
 
 class ABuildingInstancePoolActor;
 struct FGrammarBuildingVolume;
+
+// One block boundary ready for parcel subdivision -- the neutral hand-off between a road-graph-
+// specific block extractor (e.g. an Editor-only FlexNetwork adapter, see
+// FGrammarBlockExtraction/FGrammarRoadPolyline in BuildingGrammarCore) and
+// UBuildingGenerationLibrary::GenerateBuildingsFromBlocks, the same role FGrammarBuildingVolume
+// already plays for hand-resolved single footprints.
+USTRUCT(BlueprintType)
+struct BUILDINGGRAMMARRUNTIME_API FGrammarBlockInput
+{
+	GENERATED_BODY()
+
+	// Meters, closed ring, no repeated first point -- same convention as FGrammarBlock::Polygon.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
+	TArray<FVector2D> Boundary;
+
+	// If non-empty, merged onto every parcel-derived building's VolumeTags as "building" =
+	// DominantRoadTagHint (e.g. "commercial"/"residential") -- see GenerateBuildingsFromBlocks. Empty
+	// leaves VolumeTags at the plain "building" = "yes" every hand-placed/parcel building already
+	// uses.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
+	FString DominantRoadTagHint;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Block")
+	int32 BlockId = 0;
+};
 
 // The single end-to-end entry point tying every BuildingGrammarCore/Geometry/Runtime piece
 // together: OSM file -> parsed document -> assembled footprints -> projected to local-tangent-plane
@@ -165,4 +191,49 @@ public:
 		TArray<ABuildingInstancePoolActor*>& OutPools,
 		double CellSize = 10000.0,
 		FName RuntimeGridName = NAME_None);
+
+	// Subdivides every block into parcels (FGrammarParcelSubdivision::Subdivide, BuildingGrammarCore),
+	// builds one FGrammarBuildingVolume per accepted parcel (bStreetAccess, not a "patio"/"unsplit"
+	// parcel -- backland plots with no street frontage don't get a building, matching real
+	// development patterns), and forwards the whole batch to the existing, unmodified
+	// GenerateBuildingsFromResolvedVolumes -- this function does no generation of its own, it's pure
+	// glue between block extraction and that already-proven pipeline. Every parcel's VolumeTags is
+	// {"building": "yes"}, plus {"building": Block.DominantRoadTagHint} overriding it when that hint
+	// is non-empty (most of this plugin's 38 bundled styles have empty building_values/tag_filters,
+	// so this mostly only matters if StyleConfig's own styles actually have matching filters set up
+	// -- not a gap in this function, a config-authoring concern). Returns the total number of
+	// buildings generated across every block.
+	// OutDebugData, if non-null, gets one FGrammarBlockDebugData appended per block (boundary, the
+	// full Subdivide() result including its debug lines/polygons, and a ground-traced WorldZ) -- purely
+	// for an eventual viewport visualization (see FGrammarBlockDebugData's own comment); never read by
+	// this function itself.
+	static int32 GenerateBuildingsFromBlocks(
+		const UObject* WorldContextObject,
+		const TArray<FGrammarBlockInput>& Blocks,
+		const FGrammarParcelConfig& ParcelConfig,
+		EGrammarParcelSubdivisionMethod Method,
+		const FBuildingGrammarConfig& StyleConfig,
+		TArray<ABuildingInstancePoolActor*>& OutPools,
+		double CellSize = 10000.0,
+		FName RuntimeGridName = NAME_None,
+		TArray<FGrammarBlockDebugData>* OutDebugData = nullptr);
+
+	// C++-only overload for callers that want per-block progress reporting and cancellation (e.g. to
+	// drive a cancellable FScopedSlowTask -- see FBuildingGrammarEditorModule::OnGenerateFromRoadNetworkClicked),
+	// same split GenerateBuildingsFromOsmFileChunked uses for the same reason (TFunctionRef isn't
+	// Blueprint-compatible). OnBlockCompleted is invoked once per block, after that block's parcels
+	// are subdivided and generated, with BlocksCompleted counting up to Blocks.Num(); returning false
+	// stops generation before the next block starts (blocks already generated are left in place, not
+	// rolled back).
+	static int32 GenerateBuildingsFromBlocks(
+		const UObject* WorldContextObject,
+		const TArray<FGrammarBlockInput>& Blocks,
+		const FGrammarParcelConfig& ParcelConfig,
+		EGrammarParcelSubdivisionMethod Method,
+		const FBuildingGrammarConfig& StyleConfig,
+		TArray<ABuildingInstancePoolActor*>& OutPools,
+		double CellSize,
+		FName RuntimeGridName,
+		TFunctionRef<bool(int32 BlocksCompleted, int32 TotalBlocks)> OnBlockCompleted,
+		TArray<FGrammarBlockDebugData>* OutDebugData = nullptr);
 };

@@ -315,6 +315,28 @@ namespace
 	{
 		return Value == EGrammarWallRowColorMode::GroundAccent ? TEXT("ground_accent") : TEXT("cycle");
 	}
+
+	EGrammarFacadePattern FacadePatternFromString(const FString& Value)
+	{
+		const FString Lower = Value.ToLower();
+		if (Lower == TEXT("none")) return EGrammarFacadePattern::None;
+		if (Lower == TEXT("panel_seams")) return EGrammarFacadePattern::PanelSeams;
+		if (Lower == TEXT("insulation_bands")) return EGrammarFacadePattern::InsulationBands;
+		if (Lower == TEXT("ornament_bands")) return EGrammarFacadePattern::OrnamentBands;
+		return EGrammarFacadePattern::Auto;
+	}
+
+	FString FacadePatternToString(EGrammarFacadePattern Value)
+	{
+		switch (Value)
+		{
+		case EGrammarFacadePattern::None: return TEXT("none");
+		case EGrammarFacadePattern::PanelSeams: return TEXT("panel_seams");
+		case EGrammarFacadePattern::InsulationBands: return TEXT("insulation_bands");
+		case EGrammarFacadePattern::OrnamentBands: return TEXT("ornament_bands");
+		default: return TEXT("auto");
+		}
+	}
 }
 
 // ---- FWindowStyleConfig ----
@@ -722,6 +744,11 @@ FFacadeStyleConfig FGrammarConfigJson::StyleFromJsonObject(const TSharedPtr<FJso
 		Style.Antenna = AntennaFromJsonObject(*AntennaObject);
 	}
 
+	// Missing key -> GetStr's own "auto" default -> EGrammarFacadePattern::Auto, so every config
+	// written before this field existed keeps inferring its pattern from name/material tokens
+	// exactly as before -- see FacadeStyleConfig.h's comment on the enum.
+	Style.FacadePattern = FacadePatternFromString(GetStr(JsonObject, TEXT("facade_pattern"), TEXT("auto")));
+
 	return Style;
 }
 
@@ -756,6 +783,7 @@ TSharedRef<FJsonObject> FGrammarConfigJson::StyleToJsonObject(const FFacadeStyle
 	Obj->SetObjectField(TEXT("balcony"), BalconyToJsonObject(Style.Balcony));
 	Obj->SetObjectField(TEXT("door"), DoorToJsonObject(Style.Door));
 	Obj->SetObjectField(TEXT("antenna"), AntennaToJsonObject(Style.Antenna));
+	Obj->SetStringField(TEXT("facade_pattern"), FacadePatternToString(Style.FacadePattern));
 
 	return Obj;
 }

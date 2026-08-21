@@ -2,6 +2,7 @@
 
 #include "BuildingGenerationLibrary.h"
 #include "BuildingInstancePoolActor.h"
+#include "FlexRoadBlockExtraction.h"
 #include "Config/GrammarConfigJson.h"
 #include "Footprint/BuildingFootprint.h"
 #include "Osm/BuildingPartResolver.h"
@@ -265,6 +266,64 @@ void UBuildingGrammarEdModeSettings::DeleteGeneratedBuildingPools()
 		}
 	}
 	LastResult = FString::Printf(TEXT("Deleted %d generated building pool(s)."), DeletedCount);
+}
+
+// Batch, whole-level v1: extracts every block from the level's current FlexNetwork road graph,
+// subdivides each into parcels, and generates one building per street-facing parcel -- mirrors
+// GenerateBuildingsFromOsmAsset's exact shape (same ResolveConfig/FScopedTransaction/
+// bReplaceExistingBuildingPools/LastResult conventions), just with FFlexRoadBlockExtraction +
+// UBuildingGenerationLibrary::GenerateBuildingsFromBlocks standing in for the OSM footprint path. An
+// interactive per-block tool (regenerate just one block) is intentionally not part of this pass --
+// see the plan this was built from.
+void UBuildingGrammarEdModeSettings::GenerateBuildingsFromRoadNetwork()
+{
+	UWorld* World = TargetWorld.Get();
+	if (!World)
+	{
+		LastResult = TEXT("No editor world is open.");
+		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(LastResult));
+		return;
+	}
+
+	FBuildingGrammarConfig Config;
+	FString Error;
+	if (!ResolveConfig(Config, Error))
+	{
+		LastResult = FString::Printf(TEXT("Grammar config failed: %s"), *Error);
+		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(LastResult));
+		return;
+	}
+
+	const TArray<FGrammarBlockInput> Blocks = FFlexRoadBlockExtraction::ExtractBlockInputsFromFlexNetwork(World);
+	if (Blocks.IsEmpty())
+	{
+		LastResult = TEXT("No blocks found -- draw or import a FlexNetwork road network first (Tools > FlexNetwork).");
+		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(LastResult));
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("GenerateBuildingsFromRoadNetwork", "Generate Buildings From Road Network"));
+	if (bReplaceExistingBuildingPools)
+	{
+		TArray<ABuildingInstancePoolActor*> ExistingPools;
+		for (TActorIterator<ABuildingInstancePoolActor> It(World); It; ++It)
+		{
+			ExistingPools.Add(*It);
+		}
+		for (ABuildingInstancePoolActor* Pool : ExistingPools)
+		{
+			Pool->Modify();
+			Pool->Destroy();
+		}
+	}
+
+	LastParcelDebugData.Reset();
+	TArray<ABuildingInstancePoolActor*> Pools;
+	const int32 GeneratedCount = UBuildingGenerationLibrary::GenerateBuildingsFromBlocks(
+		World, Blocks, ParcelConfig, ParcelSubdivisionMethod, Config, Pools, CellSize, RuntimeGridName, &LastParcelDebugData);
+
+	LastResult = FString::Printf(TEXT("Generated %d building(s) across %d block(s) into %d pool(s)."),
+		GeneratedCount, Blocks.Num(), Pools.Num());
 }
 
 #undef LOCTEXT_NAMESPACE

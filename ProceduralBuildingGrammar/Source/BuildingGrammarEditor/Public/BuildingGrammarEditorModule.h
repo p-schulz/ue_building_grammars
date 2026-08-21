@@ -10,6 +10,7 @@ class UWorld;
 class FStructOnScope;
 struct FPropertyChangedEvent;
 struct FCanLoadMap;
+struct FGrammarBlockPickInfo;
 
 // Registers entries under "Tools > Procedural Building Grammar" in the Level Editor main menu:
 // loading a preset config from a snake_case JSON file (FGrammarConfigJson -- see its header for
@@ -47,6 +48,16 @@ private:
 	void OnClearLevelGeoReferenceClicked();
 
 	void OnGenerateFromOsmClicked();
+
+	// Extracts every closed block from the current level's live FlexNetwork road graph
+	// (FFlexRoadBlockExtraction), subdivides each into parcels, and generates one building per
+	// street-facing parcel using whichever config OnLoadConfigFromJsonClicked most recently loaded
+	// (same fallback-to-urban_block-preset convention as OnGenerateFromOsmClicked). Unlike that
+	// action, there's no file to pick -- the road network is whatever's already live in the level --
+	// so this only needs a confirmation of scope (block count) before running, with an
+	// FScopedSlowTask progress dialog (one frame per block) for the actual generation.
+	void OnGenerateFromRoadNetworkClicked();
+
 	void OnSaveToStaticMeshesClicked();
 
 	// Batches ABuildingInstancePoolActor::BakeToLevelLightweight (selected pool actors, or every one
@@ -109,6 +120,21 @@ private:
 	// separate "Apply" button; edits take effect as soon as a field commits.
 	void HandlePickPanelPropertyChanged(const FPropertyChangedEvent& ChangedEvent);
 
+	// Bound to FBuildingPickEdMode::OnBlockPicked -- shows/refreshes the floating "Pick Block"
+	// regenerate-parameters panel for the just-picked block (see BuildingPickPanelData.h's
+	// FGrammarBlockPickPanelData). Same ownership split as HandleBuildingPicked: the mode only
+	// hit-tests and broadcasts, this module owns the panel and the actual regenerate action.
+	void HandleBlockPicked(const FGrammarBlockPickInfo& Info);
+
+	// Bound to the block panel's OnFinishedChangingProperties, same no-separate-Apply-button
+	// convention as HandlePickPanelPropertyChanged. Removes the picked block's existing volumes from
+	// whichever pool(s) currently hold them (by FGrammarBuildingVolume::SourceName prefix
+	// "parcel/{BlockId}_"), destroying any pool left with none, then regenerates just that one block
+	// via UBuildingGenerationLibrary::GenerateBuildingsFromBlocks with the panel's current Method/
+	// ParcelConfig -- see this method's own .cpp comment for why GenerateBuildingsFromResolvedVolumes
+	// always spawns a fresh pool rather than reusing one.
+	void HandleBlockPickPanelPropertyChanged(const FPropertyChangedEvent& ChangedEvent);
+
 	TOptional<FBuildingGrammarConfig> LoadedConfig;
 
 	// Reused across picks rather than recreated -- see this module's .cpp for why (avoids
@@ -118,4 +144,16 @@ private:
 	TSharedPtr<IStructureDetailsView> PickPanelDetailsView;
 	TSharedPtr<SWindow> PickPanelWindow;
 	TWeakObjectPtr<ABuildingInstancePoolActor> PickedPool;
+
+	// Parallel set of members for the block-regenerate panel -- kept entirely separate from the
+	// building-customization panel above so both can be open at once without fighting over one
+	// FStructOnScope/window. BlockBoundary/BlockTagHint aren't part of the editable
+	// FGrammarBlockPickPanelData struct (see that struct's own comment), so they're cached here
+	// instead, same role FBuildingPickPanelData::SourceName plays for the other panel except that one
+	// lives inside the struct itself since it's simple VisibleAnywhere context.
+	TSharedPtr<FStructOnScope> BlockPickPanelStruct;
+	TSharedPtr<IStructureDetailsView> BlockPickPanelDetailsView;
+	TSharedPtr<SWindow> BlockPickPanelWindow;
+	TArray<FVector2D> PickedBlockBoundary;
+	FString PickedBlockTagHint;
 };

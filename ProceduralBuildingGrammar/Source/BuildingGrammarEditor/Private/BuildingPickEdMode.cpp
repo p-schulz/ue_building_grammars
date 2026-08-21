@@ -19,6 +19,7 @@
 
 const FEditorModeID FBuildingPickEdMode::ModeID = TEXT("BuildingGrammar.PickBuildingMode");
 FBuildingPickEdMode::FOnBuildingPicked FBuildingPickEdMode::OnBuildingPicked;
+FBuildingPickEdMode::FOnBlockPicked FBuildingPickEdMode::OnBlockPicked;
 
 namespace
 {
@@ -160,7 +161,72 @@ bool FBuildingPickEdMode::HandleClick(FEditorViewportClient* InViewportClient, H
 		return false;
 	}
 
+	if (Tool == EBuildingGrammarEditTool::Block)
+	{
+		return HandleBlockPickClick(InViewportClient, Click);
+	}
+
 	return HandleSelectClick(InViewportClient, HitProxy, Click);
+}
+
+bool FBuildingPickEdMode::HandleBlockPickClick(FEditorViewportClient* InViewportClient, const FViewportClick& Click)
+{
+	UBuildingGrammarEdModeSettings* Settings = GetOrCreateModeSettings();
+	UWorld* World = GetWorld();
+	if (!Settings || !World || Settings->LastParcelDebugData.IsEmpty())
+	{
+		return false;
+	}
+
+	const FVector Start = Click.GetOrigin();
+	const FVector Direction = Click.GetDirection();
+	const FVector End = Start + Direction * WORLD_MAX;
+
+	FVector ImpactPoint;
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.bTraceComplex = true;
+	if (World->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, QueryParams))
+	{
+		ImpactPoint = HitResult.Location;
+	}
+	else
+	{
+		// Nothing under the cursor (e.g. a block with no landscape/road mesh under it yet) -- fall
+		// back to the world Z=0 plane, same reasoning as TraceCursorToWorld's own fallback.
+		if (FMath::Abs(Direction.Z) <= KINDA_SMALL_NUMBER)
+		{
+			return false;
+		}
+		const double T = (0.0 - Start.Z) / Direction.Z;
+		if (T < 0.0)
+		{
+			return false;
+		}
+		ImpactPoint = Start + Direction * T;
+	}
+
+	// Same footprint-space convention as HandleSelectClick: BlockBoundary is plain meters with no
+	// separate origin bookkeeping, so this is a plain /100 on X/Y.
+	const FVector2D PointMeters(ImpactPoint.X / 100.0, ImpactPoint.Y / 100.0);
+	for (const FGrammarBlockDebugData& Debug : Settings->LastParcelDebugData)
+	{
+		if (!FGrammarGeometry2D::PointInRing(PointMeters, Debug.BlockBoundary))
+		{
+			continue;
+		}
+
+		FGrammarBlockPickInfo PickInfo;
+		PickInfo.BlockId = Debug.BlockId;
+		PickInfo.BlockBoundary = Debug.BlockBoundary;
+		PickInfo.DominantRoadTagHint = Debug.DominantRoadTagHint;
+		PickInfo.ParcelConfig = Settings->ParcelConfig;
+		PickInfo.Method = Settings->ParcelSubdivisionMethod;
+		OnBlockPicked.Broadcast(PickInfo);
+		return true;
+	}
+
+	return false;
 }
 
 bool FBuildingPickEdMode::HandleSelectClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
@@ -646,6 +712,97 @@ FVector FBuildingPickEdMode::GetFootprintPointWorld(ABuildingInstancePoolActor* 
 	return FVector(Ring[Index].X * 100.0, Ring[Index].Y * 100.0, 0.0);
 }
 
+// Draws the most recent "Generate Buildings From Road Network" run's captured debug data (see
+// UBuildingGrammarEdModeSettings::LastParcelDebugData/bShowParcelDebugVisualization): each block's
+// boundary, the subdivision algorithm's own debug rays/boxes (OBB split cuts, skeleton frontage rays,
+// inner offset/collapsed contours), and the final parcel outlines color-coded by outcome. Independent
+// of which viewport tool (Select/Place/Move) is active -- this is a passive overlay, not a tool.
+static void DrawParcelDebugVisualization(const UBuildingGrammarEdModeSettings* Settings, FPrimitiveDrawInterface* PDI)
+{
+	if (!Settings || !Settings->bShowParcelDebugVisualization)
+	{
+		return;
+	}
+
+	const auto ToWorld = [](const FVector2D& PointMeters, double WorldZ)
+	{
+		return FVector(PointMeters.X * 100.0, PointMeters.Y * 100.0, WorldZ);
+	};
+	const auto DrawRing = [&](const TArray<FVector2D>& Ring, double WorldZ, const FColor& Color, float Thickness)
+	{
+		const int32 N = Ring.Num();
+		for (int32 i = 0; i < N; ++i)
+		{
+			PDI->DrawLine(ToWorld(Ring[i], WorldZ), ToWorld(Ring[(i + 1) % N], WorldZ), Color, SDPG_Foreground, Thickness);
+		}
+	};
+
+	for (const FGrammarBlockDebugData& Debug : Settings->LastParcelDebugData)
+	{
+		DrawRing(Debug.BlockBoundary, Debug.WorldZ, FColor(120, 130, 255, 180), 1.5f);
+
+		// Block-diagonal half-length to clamp OBB split lines to -- GrammarParcelSubdivision.cpp
+		// stores those as a 200km-long segment centered on the actual split point (Pivot), since it
+		// has no idea how big the block is; drawn as-is that would be a line stretching far off into
+		// the distance instead of a useful visual.
+		FVector2D MinP(TNumericLimits<double>::Max(), TNumericLimits<double>::Max());
+		FVector2D MaxP(-TNumericLimits<double>::Max(), -TNumericLimits<double>::Max());
+		for (const FVector2D& P : Debug.BlockBoundary)
+		{
+			MinP = FVector2D(FMath::Min(MinP.X, P.X), FMath::Min(MinP.Y, P.Y));
+			MaxP = FVector2D(FMath::Max(MaxP.X, P.X), FMath::Max(MaxP.Y, P.Y));
+		}
+		const double BlockHalfDiagonal = FVector2D::Distance(MinP, MaxP) * 0.55;
+
+		for (const FGrammarParcelDebugPolygon& DebugPoly : Debug.Subdivision.Polygons)
+		{
+			const FColor Color = DebugPoly.Kind == TEXT("obb") ? FColor(255, 255, 255, 55) : FColor(255, 0, 255, 90);
+			DrawRing(DebugPoly.Polygon, Debug.WorldZ, Color, 1.f);
+		}
+
+		for (const FGrammarParcelDebugLine& DebugLine : Debug.Subdivision.Lines)
+		{
+			FVector2D A = DebugLine.A;
+			FVector2D B = DebugLine.B;
+			FColor Color(0, 200, 255, 140);
+			if (DebugLine.Kind == TEXT("skeleton-ray"))
+			{
+				Color = FColor(255, 230, 0, 140);
+			}
+			else if (DebugLine.Kind == TEXT("skeleton-ray-rejected"))
+			{
+				Color = FColor(255, 0, 0, 90);
+			}
+			else if (DebugLine.Kind == TEXT("obb-split"))
+			{
+				const FVector2D Mid = (A + B) * 0.5;
+				const FVector2D Dir = (B - A).GetSafeNormal();
+				A = Mid - Dir * BlockHalfDiagonal;
+				B = Mid + Dir * BlockHalfDiagonal;
+			}
+			PDI->DrawLine(ToWorld(A, Debug.WorldZ), ToWorld(B, Debug.WorldZ), Color, SDPG_Foreground, 1.f);
+		}
+
+		for (const FGrammarParcel& Parcel : Debug.Subdivision.Parcels)
+		{
+			FColor Color(80, 220, 80, 200); // Buildable, no warning.
+			if (Parcel.Method == TEXT("patio"))
+			{
+				Color = FColor(160, 80, 220, 150);
+			}
+			else if (Parcel.Warning == TEXT("unsplit") || !Parcel.bStreetAccess)
+			{
+				Color = FColor(220, 60, 60, 170); // Rejected -- not generated.
+			}
+			else if (!Parcel.Warning.IsEmpty())
+			{
+				Color = FColor(255, 180, 60, 200); // Generated anyway, but flagged (area/width out of range).
+			}
+			DrawRing(Parcel.Polygon, Debug.WorldZ, Color, 2.5f);
+		}
+	}
+}
+
 void FBuildingPickEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	FEdMode::Render(View, Viewport, PDI);
@@ -653,6 +810,8 @@ void FBuildingPickEdMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	{
 		return;
 	}
+
+	DrawParcelDebugVisualization(GetOrCreateModeSettings(), PDI);
 
 	const EBuildingGrammarEditTool Tool = GetActiveTool();
 

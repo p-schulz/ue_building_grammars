@@ -12,6 +12,7 @@
 #include "BuildingGenerationLibrary.h"
 #include "BuildingInstancePoolActor.h"
 #include "BuildingActorPersistence.h"
+#include "FlexRoadBlockExtraction.h"
 #include "GeoReferenceOriginActor.h"
 #include "Presets/GrammarBuildingPresets.h"
 #include "EngineUtils.h"
@@ -29,6 +30,8 @@
 #include "Helpers/PCGGraphParametersHelpers.h"
 #include "TreeImportLibrary.h"
 #include "TreeInstancePoolActor.h"
+#include "ScopedTransaction.h"
+#include "BuildingGrammarEdModeSettings.h"
 
 #define LOCTEXT_NAMESPACE "BuildingGrammarEditor"
 
@@ -43,6 +46,7 @@ void FBuildingGrammarEditorModule::StartupModule()
 		FSlateIcon(),
 		/*bVisible=*/true);
 	FBuildingPickEdMode::OnBuildingPicked.AddRaw(this, &FBuildingGrammarEditorModule::HandleBuildingPicked);
+	FBuildingPickEdMode::OnBlockPicked.AddRaw(this, &FBuildingGrammarEditorModule::HandleBlockPicked);
 	FEditorDelegates::OnMapLoad.AddRaw(this, &FBuildingGrammarEditorModule::HandleMapLoad);
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FBuildingGrammarEditorModule::RegisterMenus));
@@ -51,6 +55,7 @@ void FBuildingGrammarEditorModule::StartupModule()
 void FBuildingGrammarEditorModule::ShutdownModule()
 {
 	FBuildingPickEdMode::OnBuildingPicked.RemoveAll(this);
+	FBuildingPickEdMode::OnBlockPicked.RemoveAll(this);
 	FEditorDelegates::OnMapLoad.RemoveAll(this);
 	// UnrealEd may already be gone by the time a plugin module shuts down (no strict ordering
 	// guarantee) -- guard rather than risk calling into a torn-down singleton.
@@ -106,6 +111,12 @@ void FBuildingGrammarEditorModule::RegisterMenus()
 		LOCTEXT("GenerateFromOsmTooltip", "Import an .osm file and generate procedural buildings into the current level"),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnGenerateFromOsmClicked)));
+	Section.AddMenuEntry(
+		"GenerateFromRoadNetwork",
+		LOCTEXT("GenerateFromRoadNetwork", "Generate Buildings from Road Network..."),
+		LOCTEXT("GenerateFromRoadNetworkTooltip", "Extract city blocks from the current level's FlexNetwork road graph, subdivide each into parcels, and generate a building on every street-facing parcel."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBuildingGrammarEditorModule::OnGenerateFromRoadNetworkClicked)));
 	Section.AddMenuEntry(
 		"GenerateFromOsmPCG",
 		LOCTEXT("GenerateFromOsmPCG", "Generate Buildings from OSM (PCG)..."),
@@ -415,6 +426,53 @@ void FBuildingGrammarEditorModule::OnGenerateFromOsmClicked()
 			FText::FromString(FPaths::GetCleanFilename(OsmFilePath)));
 
 	FMessageDialog::Open(EAppMsgType::Ok, Message);
+}
+
+// Extracts every block from the level's current FlexNetwork road graph, subdivides each into
+// parcels, and generates a building on every street-facing parcel. Unlike OnGenerateFromOsmClicked
+// there's no file to pick -- the road network is whatever's already live in the level -- so this
+// goes straight to extraction, then runs the (potentially slow) subdivision + generation pass behind
+// a cancellable FScopedSlowTask. Uses default parcel-subdivision settings (Hybrid method, default
+// FGrammarParcelConfig) -- the ed-mode toolkit's "Generate Buildings From Road Network" command
+// (UBuildingGrammarEdModeSettings::GenerateBuildingsFromRoadNetwork) is the one that exposes
+// ParcelConfig/ParcelSubdivisionMethod for tuning; this menu entry is a quick, same-defaults shortcut.
+void FBuildingGrammarEditorModule::OnGenerateFromRoadNetworkClicked()
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	const TArray<FGrammarBlockInput> Blocks = FFlexRoadBlockExtraction::ExtractBlockInputsFromFlexNetwork(World);
+	if (Blocks.IsEmpty())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoRoadNetworkBlocks", "No closed blocks were found in this level's FlexNetwork road graph. Draw or import a road network first (Tools > FlexNetwork)."));
+		return;
+	}
+
+	const FBuildingGrammarConfig Config = LoadedConfig.IsSet() ? LoadedConfig.GetValue() : GrammarBuildingPresets::UrbanBlockConfig();
+
+	TArray<ABuildingInstancePoolActor*> Pools;
+	FScopedSlowTask SlowTask(static_cast<float>(Blocks.Num()), LOCTEXT("GeneratingBuildingsFromRoadNetwork", "Generating buildings from road network..."));
+	SlowTask.MakeDialog(/*bShowCancelButton=*/true);
+
+	bool bCancelled = false;
+	const int32 GeneratedCount = UBuildingGenerationLibrary::GenerateBuildingsFromBlocks(
+		World, Blocks, FGrammarParcelConfig(), EGrammarParcelSubdivisionMethod::Hybrid, Config, Pools,
+		/*CellSize=*/10000.0, /*RuntimeGridName=*/NAME_None,
+		[&SlowTask, &bCancelled](int32 BlocksCompleted, int32 TotalBlocks) -> bool
+		{
+			SlowTask.EnterProgressFrame(1.0f, FText::Format(
+				LOCTEXT("GeneratingBlock", "Subdividing block {0}/{1}..."), FText::AsNumber(BlocksCompleted), FText::AsNumber(TotalBlocks)));
+			bCancelled = SlowTask.ShouldCancel();
+			return !bCancelled;
+		});
+
+	FMessageDialog::Open(EAppMsgType::Ok, FText::Format(
+		bCancelled ? LOCTEXT("GeneratedFromRoadNetworkCancelled", "Cancelled after generating {0} building(s) across {1} block(s) into {2} pool(s).")
+		           : LOCTEXT("GeneratedFromRoadNetwork", "Generated {0} building(s) across {1} block(s) into {2} pool(s)."),
+		FText::AsNumber(GeneratedCount), FText::AsNumber(Blocks.Num()), FText::AsNumber(Pools.Num())));
 }
 
 // Permanent counterpart to OnGenerateFromOsmClicked's bBakeToLevelPerCell option -- bakes whatever
@@ -930,6 +988,146 @@ void FBuildingGrammarEditorModule::HandlePickPanelPropertyChanged(const FPropert
 	ABuildingInstancePoolActor* Pool = PickedPool.Get();
 	Pool->SetBuildingOverride(PanelData->SourceName, PanelData->Override);
 	Pool->RegenerateFromSource();
+}
+
+// Shows (creating on first use) a floating "Block Regenerate" panel for the just-picked block,
+// pre-filled with the mode's current global ParcelConfig/Method (see FGrammarBlockPickInfo) --
+// same reused-window pattern as HandleBuildingPicked, but entirely separate FStructOnScope/window so
+// both panels can be open at once without fighting over one.
+void FBuildingGrammarEditorModule::HandleBlockPicked(const FGrammarBlockPickInfo& Info)
+{
+	PickedBlockBoundary = Info.BlockBoundary;
+	PickedBlockTagHint = Info.DominantRoadTagHint;
+
+	FGrammarBlockPickPanelData PanelData;
+	PanelData.BlockId = Info.BlockId;
+	PanelData.Method = Info.Method;
+	PanelData.ParcelConfig = Info.ParcelConfig;
+
+	BlockPickPanelStruct = MakeShared<FStructOnScope>(FGrammarBlockPickPanelData::StaticStruct());
+	*reinterpret_cast<FGrammarBlockPickPanelData*>(BlockPickPanelStruct->GetStructMemory()) = PanelData;
+
+	if (!BlockPickPanelDetailsView.IsValid())
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bShowOptions = false;
+		const FStructureDetailsViewArgs StructureViewArgs;
+		BlockPickPanelDetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, BlockPickPanelStruct, LOCTEXT("BlockPickPanelTitle", "Block Regenerate"));
+		// No separate "Regenerate" button -- edits take effect on the picked block as soon as a field
+		// commits (see HandleBlockPickPanelPropertyChanged), same convention as the building panel.
+		BlockPickPanelDetailsView->GetOnFinishedChangingPropertiesDelegate().AddRaw(this, &FBuildingGrammarEditorModule::HandleBlockPickPanelPropertyChanged);
+	}
+	else
+	{
+		BlockPickPanelDetailsView->SetStructureData(BlockPickPanelStruct);
+	}
+
+	if (!BlockPickPanelWindow.IsValid())
+	{
+		BlockPickPanelWindow = SNew(SWindow)
+			.Title(LOCTEXT("BlockPickPanelWindowTitle", "Block Regenerate"))
+			.ClientSize(FVector2D(420.0f, 460.0f))
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			[
+				BlockPickPanelDetailsView->GetWidget().ToSharedRef()
+			];
+		BlockPickPanelWindow->SetOnWindowClosed(FOnWindowClosed::CreateLambda([this](const TSharedRef<SWindow>&)
+		{
+			BlockPickPanelDetailsView.Reset();
+			BlockPickPanelWindow.Reset();
+		}));
+		FSlateApplication::Get().AddWindow(BlockPickPanelWindow.ToSharedRef());
+	}
+	else
+	{
+		BlockPickPanelWindow->ShowWindow();
+		BlockPickPanelWindow->BringToFront();
+	}
+}
+
+// Regenerates exactly one block in place: removes its existing volumes (by SourceName prefix
+// "parcel/{BlockId}_") from whichever pool(s) currently hold them, destroying any pool left with
+// none, then generates fresh parcels for it via GenerateBuildingsFromBlocks. The remove-then-generate
+// split is required because GenerateBuildingsFromResolvedVolumes (which GenerateBuildingsFromBlocks
+// funnels into) always spawns a brand-new ABuildingInstancePoolActor per call -- it never reuses an
+// existing one -- so calling it again for the same block without first clearing the old volumes would
+// leave duplicate, overlapping buildings instead of replacing them.
+void FBuildingGrammarEditorModule::HandleBlockPickPanelPropertyChanged(const FPropertyChangedEvent& ChangedEvent)
+{
+	if (!BlockPickPanelStruct.IsValid())
+	{
+		return;
+	}
+	const FGrammarBlockPickPanelData* PanelData = reinterpret_cast<const FGrammarBlockPickPanelData*>(BlockPickPanelStruct->GetStructMemory());
+	if (!PanelData)
+	{
+		return;
+	}
+
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	// Reuses whichever grammar config/cell-size/runtime-grid the ed-mode's own "Generate Buildings
+	// From Road Network" command is currently configured with, so a single-block regenerate produces
+	// output consistent with the batch run it's touching up -- rather than this module's own,
+	// independently-tracked LoadedConfig, which may point at a different file entirely.
+	FBuildingGrammarConfig Config;
+	double CellSize = 10000.0;
+	FName RuntimeGridName = NAME_None;
+	if (FBuildingPickEdMode* Mode = static_cast<FBuildingPickEdMode*>(GLevelEditorModeTools().GetActiveMode(FBuildingPickEdMode::ModeID)))
+	{
+		if (UBuildingGrammarEdModeSettings* Settings = Mode->GetOrCreateModeSettings())
+		{
+			Config = Settings->GetResolvedConfigForPlacement();
+			CellSize = Settings->CellSize;
+			RuntimeGridName = Settings->RuntimeGridName;
+		}
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("RegenerateBlock", "Regenerate Block"));
+
+	const FString SourceNamePrefix = FString::Printf(TEXT("parcel/%d_"), PanelData->BlockId);
+	TArray<ABuildingInstancePoolActor*> ExistingPools;
+	for (TActorIterator<ABuildingInstancePoolActor> It(World); It; ++It)
+	{
+		ExistingPools.Add(*It);
+	}
+	for (ABuildingInstancePoolActor* Pool : ExistingPools)
+	{
+		const int32 RemovedCount = Pool->SourceVolumes.RemoveAll([&SourceNamePrefix](const FGrammarBuildingVolume& Volume)
+		{
+			return Volume.SourceName.StartsWith(SourceNamePrefix);
+		});
+		if (RemovedCount == 0)
+		{
+			continue;
+		}
+		Pool->Modify();
+		if (Pool->SourceVolumes.IsEmpty())
+		{
+			Pool->Destroy();
+		}
+		else
+		{
+			Pool->RegenerateFromSource();
+		}
+	}
+
+	FGrammarBlockInput BlockInput;
+	BlockInput.Boundary = PickedBlockBoundary;
+	BlockInput.DominantRoadTagHint = PickedBlockTagHint;
+	BlockInput.BlockId = PanelData->BlockId;
+
+	TArray<ABuildingInstancePoolActor*> NewPools;
+	UBuildingGenerationLibrary::GenerateBuildingsFromBlocks(
+		World, {BlockInput}, PanelData->ParcelConfig, PanelData->Method, Config, NewPools, CellSize, RuntimeGridName);
 }
 
 #undef LOCTEXT_NAMESPACE

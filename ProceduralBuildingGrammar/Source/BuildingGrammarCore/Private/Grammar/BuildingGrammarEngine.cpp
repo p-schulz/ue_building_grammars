@@ -238,7 +238,7 @@ bool FBuildingGrammarEngine::GenerateBuildingSpec(const TArray<FVector2D>& Footp
 			}
 		}
 
-		Placements.Append(GrammarFacadeDepth::FacadeDepthPlacements(SideIndex, Start, End, Normal, StreetSideIndex, FloorHeights, TotalHeight, TagsTokens, Tags));
+		Placements.Append(GrammarFacadeDepth::FacadeDepthPlacements(SideIndex, Start, End, Normal, StreetSideIndex, FloorHeights, TotalHeight, TagsTokens, Tags, Style.FacadePattern));
 
 		StampStyleName(HeroMeshes, SideHeroMeshStart, Placements, SidePlacementStart, Style.Name);
 	}

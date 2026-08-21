@@ -10,7 +10,10 @@
 #include "Geo/LocalTangentPlaneProjection.h"
 #include "Grammar/BuildingGrammarEngine.h"
 #include "GrammarKitResolver.h"
+#include "Parcel/GrammarParcelSubdivision.h"
+#include "Geometry/GrammarGeometry2D.h"
 #include "Engine/World.h"
+#include "Engine/EngineTypes.h"
 
 bool UBuildingGenerationLibrary::LoadResolvedVolumesFromOsmFile(
 	const FString& OsmFilePath,
@@ -205,6 +208,104 @@ int32 UBuildingGenerationLibrary::GenerateBuildingsFromResolvedVolumes(
 	}
 
 	return GeneratedCount;
+}
+
+int32 UBuildingGenerationLibrary::GenerateBuildingsFromBlocks(
+	const UObject* WorldContextObject,
+	const TArray<FGrammarBlockInput>& Blocks,
+	const FGrammarParcelConfig& ParcelConfig,
+	EGrammarParcelSubdivisionMethod Method,
+	const FBuildingGrammarConfig& StyleConfig,
+	TArray<ABuildingInstancePoolActor*>& OutPools,
+	double CellSize,
+	FName RuntimeGridName,
+	TArray<FGrammarBlockDebugData>* OutDebugData)
+{
+	return GenerateBuildingsFromBlocks(WorldContextObject, Blocks, ParcelConfig, Method, StyleConfig, OutPools, CellSize, RuntimeGridName,
+		[](int32, int32) { return true; }, OutDebugData);
+}
+
+namespace
+{
+	// Single ground trace at a block's centroid, purely to give otherwise-flat 2D debug geometry a
+	// plausible height when drawn in viewport later (FGrammarBlockDebugData::WorldZ) -- not used for
+	// anything generation itself does. Falls back to 0 if nothing is hit (e.g. no collision geometry
+	// under the block yet, or no World available).
+	double SampleGroundZWorldCm(UWorld* World, const FVector2D& PointMeters)
+	{
+		if (!World)
+		{
+			return 0.0;
+		}
+		const FVector Start(PointMeters.X * 100.0, PointMeters.Y * 100.0, 100000.0);
+		const FVector End(PointMeters.X * 100.0, PointMeters.Y * 100.0, -100000.0);
+		FHitResult Hit;
+		if (World->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility))
+		{
+			return Hit.ImpactPoint.Z;
+		}
+		return 0.0;
+	}
+}
+
+int32 UBuildingGenerationLibrary::GenerateBuildingsFromBlocks(
+	const UObject* WorldContextObject,
+	const TArray<FGrammarBlockInput>& Blocks,
+	const FGrammarParcelConfig& ParcelConfig,
+	EGrammarParcelSubdivisionMethod Method,
+	const FBuildingGrammarConfig& StyleConfig,
+	TArray<ABuildingInstancePoolActor*>& OutPools,
+	double CellSize,
+	FName RuntimeGridName,
+	TFunctionRef<bool(int32 BlocksCompleted, int32 TotalBlocks)> OnBlockCompleted,
+	TArray<FGrammarBlockDebugData>* OutDebugData)
+{
+	TArray<FGrammarBuildingVolume> Volumes;
+	const int32 TotalBlocks = Blocks.Num();
+	int32 BlocksCompleted = 0;
+	UWorld* World = OutDebugData ? (WorldContextObject ? WorldContextObject->GetWorld() : nullptr) : nullptr; // Only resolved if actually needed for the debug ground trace.
+
+	for (const FGrammarBlockInput& Block : Blocks)
+	{
+		const FGrammarParcelSubdivisionResult Subdivision = FGrammarParcelSubdivision::Subdivide(Block.Boundary, ParcelConfig, Method, Block.BlockId);
+
+		for (const FGrammarParcel& Parcel : Subdivision.Parcels)
+		{
+			// "patio" parcels (SkeletonWithOffset's leftover inner region) and "unsplit"-warned OBB
+			// parcels that failed validation aren't buildable; backland plots with no street
+			// frontage don't get a building either, matching real development patterns.
+			if (!Parcel.bStreetAccess || Parcel.Method == TEXT("patio") || Parcel.Warning == TEXT("unsplit"))
+			{
+				continue;
+			}
+
+			FGrammarBuildingVolume Volume;
+			Volume.Footprint.OuterRing = Parcel.Polygon;
+			Volume.SourceName = FString::Printf(TEXT("parcel/%d_%d"), Block.BlockId, Parcel.Id);
+			Volume.VolumeTags.Add(TEXT("building"), Block.DominantRoadTagHint.IsEmpty() ? FString(TEXT("yes")) : Block.DominantRoadTagHint);
+			Volume.MinHeight = 0.0;
+			Volumes.Add(MoveTemp(Volume));
+		}
+
+		if (OutDebugData)
+		{
+			FGrammarBlockDebugData Debug;
+			Debug.BlockBoundary = Block.Boundary;
+			Debug.BlockId = Block.BlockId;
+			Debug.DominantRoadTagHint = Block.DominantRoadTagHint;
+			Debug.Subdivision = Subdivision;
+			Debug.WorldZ = SampleGroundZWorldCm(World, FGrammarGeometry2D::Centroid2D(Block.Boundary));
+			OutDebugData->Add(MoveTemp(Debug));
+		}
+
+		++BlocksCompleted;
+		if (!OnBlockCompleted(BlocksCompleted, TotalBlocks))
+		{
+			break;
+		}
+	}
+
+	return GenerateBuildingsFromResolvedVolumes(WorldContextObject, Volumes, StyleConfig, OutPools, CellSize, RuntimeGridName);
 }
 
 int32 UBuildingGenerationLibrary::GenerateBuildingsFromOsmFileChunked(

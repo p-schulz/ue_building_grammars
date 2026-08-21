@@ -14,6 +14,9 @@ namespace GrammarFacadeDepth
 	// computed once by the caller (BuildingGrammarEngine.cpp's per-side loop) rather than per call,
 	// since this and the classification checks it makes (retail/industrial/parking/stair-core) used
 	// to each recompute StyleTokens from scratch. Tags is still needed alongside Tokens for
-	// IsRetailStyle/IsIndustrialStyle's direct shop=*/industrial=* tag shortcuts.
-	TArray<FGrammarPlacementRecord> FacadeDepthPlacements(int32 SideIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, int32 StreetSideIndex, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, const TMap<FString, FString>& Tags);
+	// IsRetailStyle/IsIndustrialStyle's direct shop=*/industrial=* tag shortcuts. Pattern must be
+	// Style.FacadePattern for the side's Style -- Auto resolves via the Tokens keyword sets exactly
+	// as every style did before that field existed; an explicit (non-Auto) value overrides the
+	// keyword check entirely, forcing exactly one pattern (or None) regardless of what Tokens contains.
+	TArray<FGrammarPlacementRecord> FacadeDepthPlacements(int32 SideIndex, const FVector2D& Start, const FVector2D& End, const FVector2D& Normal, int32 StreetSideIndex, const TArray<double>& FloorHeights, double TotalHeight, const TSet<FString>& Tokens, const TMap<FString, FString>& Tags, EGrammarFacadePattern Pattern);
 }
